@@ -40,3 +40,13 @@ class CustomZarembaModel(nn.Module):
 class SmallZarembaModel(CustomZarembaModel):
     def __init__(self, vocab_size):
         super(SmallZarembaModel, self).__init__(vocab_size, 200, 2, 0.1, 0)
+
+
+class MediumZarembaModel(CustomZarembaModel):
+    def __init__(self, vocab_size):
+        super(SmallZarembaModel, self).__init__(vocab_size, 650, 2, 0.05, 0.5)
+
+
+class LargeZarembaModel(CustomZarembaModel):
+    def __init__(self, vocab_size):
+        super(SmallZarembaModel, self).__init__(vocab_size, 1500, 2, 0.04, 0.65)
