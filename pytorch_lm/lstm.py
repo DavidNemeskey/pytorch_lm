@@ -5,23 +5,34 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.autograd import Variable
 
 
 class LstmCell(nn.Module):
     """
-    A reimplementation of the LSTM cell. It takes 176s to run the time
-    sequence prediction example; the built-in LSTMCell takes 133s. So it's
-    slower, but at least transparent.
+    A reimplementation of the LSTM cell. (Actually, a layer of LSTM cells.)
+    It takes 176s to run the time sequence prediction example; the built-in
+    LSTMCell takes 133s. So it's slower, but at least transparent.
 
     As a reminder: input size is batch_size x input_features.
     """
-    def __init__(self, input_size, hidden_size, bias=True):
+    def __init__(self, input_size, hidden_size, bias=True, dropout=0):
+        """
+        Args:
+            - input_size: the number of input features
+            - hidden_size: the number of cells
+            - bias: whether to use biases. The default is True. Will be removed,
+                    because why would anyone not use them?
+            - dropout: Following Zaremba (2014), dropout is applied on the
+                       input tensor.
+        """
         super(LstmCell, self).__init__()
         # TODO: add forget_bias
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.bias = bias
+        self.dropout = dropout
 
         self.w_i = nn.Parameter(torch.Tensor(input_size, 4 * hidden_size))
         self.w_h = nn.Parameter(torch.Tensor(hidden_size, 4 * hidden_size))
@@ -63,6 +74,8 @@ class LstmCell(nn.Module):
     def forward(self, input, hidden):
         h_t, c_t = hidden
 
+        if self.dropout:
+            input = F.dropout(input, p=self.dropout, training=self.training)
         ifgo = input.matmul(self.w_i) + h_t.matmul(self.w_h)
 
         if self.bias:
@@ -103,14 +116,20 @@ class Lstm(nn.Module):
     Several layers of LstmCells. Input is batch_size x num_steps x input_size,
     which is different from the Pytorch LSTM (the first two dimensions are
     swapped).
+
+    If dropout is specified, it is applied on the output. So for L layers,
+    dropout is applied L + 1 times (once on the input in each layer + once on
+    the final output).
     """
-    def __init__(self, input_size, hidden_size, num_layers):
+    def __init__(self, input_size, hidden_size, num_layers, dropout=0):
         super(Lstm, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+        self.dropout = dropout
 
-        self.layers = [LstmCell(input_size if not l else hidden_size, hidden_size)
+        self.layers = [LstmCell(input_size if not l else hidden_size,
+                                hidden_size, dropout=dropout)
                        for l in range(num_layers)]
         for l, layer in enumerate(self.layers):
             self.add_module('Layer_{}'.format(l), layer)
@@ -127,6 +146,8 @@ class Lstm(nn.Module):
                 hiddens[l] = h_t, c_t
             outputs.append(values)
         outputs = torch.stack(outputs, 1)
+        if self.dropout:
+            outputs = F.dropout(outputs, p=self.dropout, training=self.training)
         return outputs, hiddens
 
     def init_hidden(self, batch_size):
