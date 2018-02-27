@@ -163,7 +163,6 @@ def train(model, corpus, train_data, criterion, epoch, lr, batch_size,
     hidden = model.init_hidden(batch_size)
 
     for batch, i in enumerate(range(0, data_len - 1, num_steps)):
-        print('Batch ', batch, flush=True)
         # print('FOR', batch, i, (train_data.size(1) - 1) // num_steps)
         data, targets = get_batch(train_data, i, num_steps)
 
@@ -289,7 +288,6 @@ def main():
             lr_decay = 0.5 ** max(epoch - 4, 0.0)
             lr = orig_lr * lr_decay
             epoch_start_time = time.time()
-            print('Starting training...', flush=True)
             train(model, corpus, train_data, criterion, epoch,
                   lr, train_batch_size, num_steps, args.log_interval)
             val_loss = evaluate(model, corpus, val_data,
