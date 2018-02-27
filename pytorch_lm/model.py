@@ -59,11 +59,6 @@ class SmallZarembaModel(nn.Module):
         set_data(self.decoder.bias, data_dict[prefix + 'softmax_b'], is_cuda)
 
 
-class SmallZarembaModel2(CustomZarembaModel):
-    def __init__(self, vocab_size):
-        super(SmallZarembaModel2, self).__init__(vocab_size, 200, 2, 0.1, 0)
-
-
 class CustomZarembaModel(nn.Module):
     """Implements a generic embedding - LSTM - softmax LM."""
     def __init__(self, vocab_size, hidden_size=200, num_layers=2,
@@ -96,3 +91,8 @@ class CustomZarembaModel(nn.Module):
 
     def init_hidden(self, batch_size):
         return self.rnn.init_hidden(batch_size)
+
+
+class SmallZarembaModel2(CustomZarembaModel):
+    def __init__(self, vocab_size):
+        super(SmallZarembaModel2, self).__init__(vocab_size, 200, 2, 0.1, 0)
