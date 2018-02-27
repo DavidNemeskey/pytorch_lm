@@ -9,6 +9,7 @@ import os
 
 import numpy as np
 import torch
+from torch.autograd import Variable
 
 class Dictionary(object):
     def __init__(self):
