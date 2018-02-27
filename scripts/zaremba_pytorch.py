@@ -39,17 +39,12 @@ class SmallZarembaModel(nn.Module):
         self.decoder.bias.data.uniform_(-initrange, initrange)  # fill_(0)
         self.decoder.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, input, hidden, trace=False):
-        # print('INPUT', input.size())
+    def forward(self, input, hidden):
         emb = self.encoder(input)
-        # print('EMB', emb.size())
         # self.rnn.flatten_parameters()
         output, hidden = self.rnn(emb, hidden)
         decoded = self.decoder(
             output.view(output.size(0) * output.size(1), output.size(2)))
-        if trace:
-            print('EMB', emb.data.cpu().numpy())
-            print('RNN_OUT', output.data.cpu().numpy())
         return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden
 
     def init_hidden(self, batch_size):
@@ -94,9 +89,6 @@ def parse_arguments():
     parser.add_argument('--cuda', '-c', action='store_true', help='use CUDA')
     parser.add_argument('--log-interval', '-l', type=int, default=200, metavar='N',
                         help='report interval')
-    parser.add_argument('--trace-data', '-T', type=int, default=0,
-                        help='log the weights and results of each component. '
-                             'Exits after the specified number of minibatches.')
     save_load = parser.add_mutually_exclusive_group()
     save_load.add_argument('--save-params', '-S',
                            help='save parameters to an .npz file and exit.')
@@ -162,24 +154,18 @@ def get_batch(source, i, num_steps, evaluation=False):
 
 
 def train(model, corpus, train_data, criterion, epoch, lr, batch_size,
-          num_steps, log_interval, trace=0):
+          num_steps, log_interval):
     # Turn on training mode which enables dropout.
     model.train()
     total_loss = 0
     start_time = time.time()
     data_len = train_data.size(1)
     hidden = model.init_hidden(batch_size)
-    if trace:
-        print('HIDDEN', [[v.data.cpu().numpy() for v in t] for t in hidden])
 
     for batch, i in enumerate(range(0, data_len - 1, num_steps)):
         print('Batch ', batch, flush=True)
         # print('FOR', batch, i, (train_data.size(1) - 1) // num_steps)
         data, targets = get_batch(train_data, i, num_steps)
-        if trace:
-            print('BATCH', batch)
-            print('DATA', data.cpu().numpy())
-            print('TARGET', targets.cpu().numpy())
 
         def to_str(f):
             return corpus.dictionary.idx2word[f]
@@ -193,50 +179,18 @@ def train(model, corpus, train_data, criterion, epoch, lr, batch_size,
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
         hidden = repackage_hidden(hidden)
         model.zero_grad()
-        output, hidden = model(data, hidden, trace)
-        if trace:
-            print('LOGITS', output.data.size(), output.data.cpu().numpy())
-            print('FINAL STATE', [[v.data.cpu().numpy() for v in t] for t in hidden])
+        output, hidden = model(data, hidden)
         # print('TARGETS\n', np.vectorize(to_str)(targets.data.cpu().numpy()))
         # _, indices = output.max(2)
         # print('OUTPUT\n', np.vectorize(to_str)(indices.data.cpu().numpy()))
         loss = criterion(output, targets)
-        # print('TRAIN COST', loss)
-        if trace:
-            print('LOSS', loss)
         loss.backward()
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-        # torch.nn.utils.clip_grad_norm(model.parameters(), config.clip)
-        # all_min, all_max, all_sum, all_size = 1000, -1000, 0, 0
-        for name, p in model.named_parameters():
-            # data = p.grad.data
-            # shape = data.size()
-            # all_min = all_min if data.min() >= all_min else data.min()
-            # all_max = all_max if data.max() <= all_max else data.max()
-            # all_sum += data.sum()
-            # from functools import reduce
-            # all_size += reduce(lambda a, b: a * b, shape)
-            # print(name, shape, data.min(), data.max(), data.mean(), data.std())
-            if trace:
-                print('GRAD', name, p.grad.data.cpu().numpy())
-
         torch.nn.utils.clip_grad_norm(model.parameters(), 5.0)
 
         for name, p in model.named_parameters():
-            if trace:
-                print('GRAD CLIP', name, p.grad.data.cpu().numpy())
             p.data.add_(-1 * lr, p.grad.data)
-            if trace:
-                print('NEW VALUE', name, p.data.cpu().numpy())
-        # print('Sum', all_min, all_max, all_sum / all_size)
-        # print()
-        # if batch % log_interval == 0 and batch > 0:
-        #     sys.exit()
-
-        if trace and batch == trace - 1:  # batch counts from 0
-            print('Trace done; exiting...')
-            sys.exit()
 
         total_loss += loss.data / num_steps
 
@@ -250,7 +204,6 @@ def train(model, corpus, train_data, criterion, epoch, lr, batch_size,
                   flush=True)
             total_loss = 0
             start_time = time.time()
-            # sys.exit()  # Was here for the LR sweep
 
 
 def evaluate(model, corpus, data_source, criterion, batch_size, num_steps):
@@ -338,8 +291,7 @@ def main():
             epoch_start_time = time.time()
             print('Starting training...', flush=True)
             train(model, corpus, train_data, criterion, epoch,
-                  lr, train_batch_size, num_steps, args.log_interval,
-                  args.trace_data)
+                  lr, train_batch_size, num_steps, args.log_interval)
             val_loss = evaluate(model, corpus, val_data,
                                 criterion, eval_batch_size, num_steps)
             print('-' * 89)
