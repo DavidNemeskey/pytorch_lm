@@ -3,42 +3,66 @@
 
 """LR schedules."""
 
+from bisect import bisect_right
 
-class LRSchedule:
+from torch.optim.lr_scheduler import _LRScheduler, ExponentialLR
+
+
+class ConstantLR(_LRScheduler):
+    """Keeps the learning rate constant."""
+    def get_lr(self):
+        return [base_lr for base_lr in self.base_lrs]
+
+
+class MultiScheduleLR(_LRScheduler):
     """
-    The default LR schedule. Keeps the learning rate constant.
+    Sets a different learning rate scheduler once the number of epochs reaches
+    one of the milestones. When last_epoch=-1, sets initial lr as lr.
 
-    Learning rate schedulers should implement the iterator protocol, and do a
-    scheduling "step" (e.g. LR decay) on each call of next().
+    Args:
+        optimizer (Optimizer): Wrapped optimizer.
+        milestones (dict): A dictionary of {milestone: scheduler}. All scheduler
+                           objects must be associated with the same optimizer.
+                           The first milestone should be 0.
+        last_epoch (int): The index of the last (previous) epoch. Default: -1.
     """
-    def __init__(self, lr):
-        self.lr = lr
-        self.orig_lr = lr
+    def __init__(self, optimizer, milestones, last_epoch=-1):
+        if not (isinstance(milestones, dict) and dict):
+            raise ValueError('Milestones should be non-empty dict of '
+                             '{milestone: scheduler}. Got {}', milestones)
+        for scheduler in milestones.values():
+            if not isinstance(scheduler, _LRScheduler):
+                raise TypeError('{} is not an _LRScheduler'.format(
+                    type(scheduler).__name__))
+            if scheduler.optimizer != optimizer:
+                raise ValueError('All schedulers must be associated with the '
+                                 'same Optimizer.')
+        self.milestones, self.schedulers = zip(*sorted(milestones.items()))
+        if self.milestones[0] > last_epoch + 1:
+            raise ValueError('The first milestone must be less or equal '
+                             'than last_epoch.')
+        self.scheduler = None
+        super(MultiScheduleLR, self).__init__(optimizer, last_epoch)
 
-    def reset(self):
-        self.lr = self.orig_lr
+    def step(self, epoch=None):
+        super(MultiScheduleLR, self).step(epoch)
+        scheduler = self.schedulers[
+            bisect_right(self.milestones, self.last_epoch) - 1
+        ]
+        if scheduler != self.scheduler:
+            self.scheduler = scheduler
+        self.scheduler.step(epoch)
 
-    def __iter__(self):
-        return self
+    def get_lr(self):
+        milestone = bisect_right(self.milestones, self.last_epoch) - 1
+        scheduler = self.schedulers[milestone]
+        return scheduler.get_lr()
 
-    def __next__(self):
-        return self.lr
-
-class ManualLRSchedule(LRSchedule):
-    """
-    Manual LR decay with an optional grace period. Used in e.g. Zaremba (2014).
-    """
-    def __init__(self, lr, lr_decay=0.9, decay_delay=0, max_steps=None):
-        super(ManualLRSchedule, self).__init__(lr)
-        self.lr_decay = lr_decay
-        self.decay_delay = decay_delay
-        self.max_steps = max_steps
-        self.steps = 0
-
-    def __next__(self):
-        self.steps += 1
-        if self.steps == self.max_steps:
-            raise StopIteration()
-        lr_decay = self.lr_decay ** max(self.steps - self.decay_delay, 0.0)
-        self.lr = self.orig_lr * lr_decay
-        return self.lr
+class ZarembaScheduleLR(MultiScheduleLR):
+    """The Zaremba schedule."""
+    def __init__(self, optimizer, lr_decay, decay_delay, last_epoch=-1):
+        super(ZarembaScheduleLR, self).__init__(
+            optimizer,
+            {0: ConstantLR(optimizer),
+             decay_delay: ExponentialLR(optimizer, lr_decay, last_epoch=0)}
+        )

@@ -14,7 +14,7 @@ from torch.autograd import Variable
 
 from pytorch_lm.data import Corpus, batchify, get_batch
 from pytorch_lm.loss import SequenceLoss
-from pytorch_lm.lr_schedule import ManualLRSchedule
+from pytorch_lm.lr_schedule import ZarembaScheduleLR
 from pytorch_lm.model import SmallZarembaModel2
 from pytorch_lm.utils.logging import setup_stream_logger
 
@@ -156,17 +156,18 @@ def main():
     criterion = SequenceLoss(reduce_across_batch='mean',
                              reduce_across_timesteps='sum')
 
+    optimizer = torch.optim.SGD(model.parameters(), lr=1.0)
     # Loop over epochs.
-    lr_schedule = ManualLRSchedule(args.lr, 0.5, 4)
+    lr_schedule = ZarembaScheduleLR(optimizer, 0.5, 4)
     # best_val_loss = None
 
     # At any point you can hit Ctrl + C to break out of training early.
     try:
         for epoch in range(1, 13 + 1):
-            lr = next(lr_schedule)
+            lr = lr_schedule.step()
             epoch_start_time = time.time()
-            train(model, corpus, train_data, criterion, epoch,
-                  lr, train_batch_size, num_steps, args.log_interval)
+            train(model, corpus, train_data, criterion, epoch, lr,
+                  train_batch_size, num_steps, args.log_interval)
             val_loss = evaluate(model, corpus, val_data,
                                 criterion, eval_batch_size, num_steps)
             logger.info('-' * 89)
