@@ -35,7 +35,8 @@ def parse_arguments():
                         help='the model key name.')
     parser.add_argument('--seed', '-s', type=int, default=1111, help='random seed')
     parser.add_argument('--cuda', '-c', action='store_true', help='use CUDA')
-    parser.add_argument('--lr', type=float, default=1.0)
+    parser.add_argument('--config-file', '-C', required=True,
+                        help='the configuration file.')
     parser.add_argument('--log-level', '-L', type=str, default=None,
                         choices=['debug', 'info', 'warning', 'error', 'critical'],
                         help='the logging level.')
