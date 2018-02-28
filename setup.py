@@ -12,7 +12,7 @@ def readme():
         return f.read()
 
 setup(name='pytorch_lm',
-      version='0.1',
+      version='0.2',
       description='Pytorch-based experiments for Language Modeling',
       long_description=readme(),
       url='https://github.com/DavidNemeskey/pytorch_lm',
@@ -48,9 +48,9 @@ setup(name='pytorch_lm',
       packages=find_packages(exclude=['scripts']),
       # Include the configuration -- unfortunately, MANIFEST.in doesn't seem
       # to do it for bdist (and package_data for sdist)
-      # package_data={
-      #     'conf': ['*'],
-      # },
+      package_data={
+          'pytorch_lm.conf': ['*'],
+      },
       # Install the scripts
       scripts=[
           'scripts/zaremba_pytorch.py',

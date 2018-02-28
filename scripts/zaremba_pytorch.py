@@ -6,6 +6,7 @@ Implements the small model from Zaremba (2014).
 """
 
 import argparse
+import json
 import math
 import time
 
@@ -14,8 +15,8 @@ from torch.autograd import Variable
 
 from pytorch_lm.data import Corpus, batchify, get_batch
 from pytorch_lm.loss import SequenceLoss
-from pytorch_lm.lr_schedule import ZarembaScheduleLR
-from pytorch_lm.model import SmallZarembaModel
+from pytorch_lm.lr_schedule import ConstantLR
+from pytorch_lm.utils.config import get_config_file, create_object
 from pytorch_lm.utils.logging import setup_stream_logger
 
 
@@ -43,10 +44,12 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def train(model, corpus, train_data, criterion, optimizer, epoch, lr, batch_size,
-          num_steps, log_interval):
+def train(model, corpus, train_data, criterion, optimizer, lr_schedule,
+          epoch, batch_size, num_steps, log_interval):
     # Turn on training mode which enables dropout.
     model.train()
+    lr_schedule.step()
+    lr = lr_schedule.get_lr()[0]
     total_loss = 0
     start_time = time.time()
     data_len = train_data.size(1)
@@ -110,6 +113,26 @@ def repackage_hidden(h):
         return [repackage_hidden(v) for v in h]
 
 
+def read_config(config_file, vocab_size):
+    """
+    Reads the configuration file, and creates the model, optimizer and
+    learning rate schedule objects used by the training process.
+    """
+    with open(get_config_file(config_file)) as inf:
+        config = json.load(inf)
+    model = create_object(config['model'], base_module='pytorch_lm.model',
+                          args=[vocab_size])
+    optimizer = create_object(config['optimizer'], base_module='torch.optim')
+    if 'lr_scheduler' in config:
+        lr_scheduler = create_object(config['lr_scheduler'],
+                                     base_module='pytorch_lm.lr_schedule',
+                                     args=[optimizer])
+    else:
+        lr_scheduler = ConstantLR(optimizer)
+    return (model, optimizer, lr_scheduler, config['num_epochs'],
+            config['batch_size'], config['num_steps'])
+
+
 def main():
     args = parse_arguments()
 
@@ -130,20 +153,18 @@ def main():
     ###############################################################################
 
     corpus = Corpus(args.data)
+    vocab_size = len(corpus.dictionary)
 
-    train_batch_size = 20
-    eval_batch_size = 20
-    num_steps = 20
+    ###############################################################################
+    # Build the model, etc.
+    ###############################################################################
+
+    (model, optimizer, lr_schedule,
+     num_epochs, batch_size, num_steps) = read_config(args.config_file, vocab_size)
+    train_batch_size = eval_batch_size = batch_size
     train_data = batchify(corpus.train, train_batch_size, args.cuda)
     val_data = batchify(corpus.valid, eval_batch_size, args.cuda)
     test_data = batchify(corpus.test, eval_batch_size, args.cuda)
-
-    ###############################################################################
-    # Build the model
-    ###############################################################################
-
-    vocab_size = len(corpus.dictionary)
-    model = SmallZarembaModel(vocab_size)
 
     # model.double()
     if args.cuda:
@@ -157,19 +178,15 @@ def main():
     criterion = SequenceLoss(reduce_across_batch='mean',
                              reduce_across_timesteps='sum')
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=1.0)
     # Loop over epochs.
-    lr_schedule = ZarembaScheduleLR(optimizer, 0.5, 4)
     # best_val_loss = None
 
     # At any point you can hit Ctrl + C to break out of training early.
     try:
-        for epoch in range(1, 13 + 1):
-            lr_schedule.step()
-            lr = lr_schedule.get_lr()[0]
+        for epoch in range(1, num_epochs + 1):
             epoch_start_time = time.time()
-            train(model, corpus, train_data, criterion, optimizer, epoch, lr,
-                  train_batch_size, num_steps, args.log_interval)
+            train(model, corpus, train_data, criterion, optimizer, lr_schedule,
+                  epoch, train_batch_size, num_steps, args.log_interval)
             val_loss = evaluate(model, corpus, val_data,
                                 criterion, eval_batch_size, num_steps)
             logger.info('-' * 89)
