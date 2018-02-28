@@ -43,7 +43,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def train(model, corpus, train_data, criterion, epoch, lr, batch_size,
+def train(model, corpus, train_data, criterion, optimizer, epoch, lr, batch_size,
           num_steps, log_interval):
     # Turn on training mode which enables dropout.
     model.train()
@@ -69,8 +69,9 @@ def train(model, corpus, train_data, criterion, epoch, lr, batch_size,
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         torch.nn.utils.clip_grad_norm(model.parameters(), 5.0)
 
-        for name, p in model.named_parameters():
-            p.data.add_(-1 * lr, p.grad.data)
+        optimizer.step()
+        # for name, p in model.named_parameters():
+        #     p.data.add_(-1 * lr, p.grad.data)
 
         total_loss += loss.data / num_steps
 
@@ -164,9 +165,10 @@ def main():
     # At any point you can hit Ctrl + C to break out of training early.
     try:
         for epoch in range(1, 13 + 1):
-            lr = lr_schedule.step()
+            lr_schedule.step()
+            lr = lr_schedule.get_lr()[0]
             epoch_start_time = time.time()
-            train(model, corpus, train_data, criterion, epoch, lr,
+            train(model, corpus, train_data, criterion, optimizer, epoch, lr,
                   train_batch_size, num_steps, args.log_interval)
             val_loss = evaluate(model, corpus, val_data,
                                 criterion, eval_batch_size, num_steps)
