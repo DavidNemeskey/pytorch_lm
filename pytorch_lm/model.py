@@ -44,9 +44,9 @@ class SmallZarembaModel(CustomZarembaModel):
 
 class MediumZarembaModel(CustomZarembaModel):
     def __init__(self, vocab_size):
-        super(SmallZarembaModel, self).__init__(vocab_size, 650, 2, 0.05, 0.5)
+        super(MediumZarembaModel, self).__init__(vocab_size, 650, 2, 0.05, 0.5)
 
 
 class LargeZarembaModel(CustomZarembaModel):
     def __init__(self, vocab_size):
-        super(SmallZarembaModel, self).__init__(vocab_size, 1500, 2, 0.04, 0.65)
+        super(LargeZarembaModel, self).__init__(vocab_size, 1500, 2, 0.04, 0.65)
