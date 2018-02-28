@@ -15,7 +15,7 @@ from torch.autograd import Variable
 from pytorch_lm.data import Corpus, batchify, get_batch
 from pytorch_lm.loss import SequenceLoss
 from pytorch_lm.lr_schedule import ZarembaScheduleLR
-from pytorch_lm.model import SmallZarembaModel2
+from pytorch_lm.model import SmallZarembaModel
 from pytorch_lm.utils.logging import setup_stream_logger
 
 
@@ -142,7 +142,7 @@ def main():
     ###############################################################################
 
     vocab_size = len(corpus.dictionary)
-    model = SmallZarembaModel2(vocab_size)
+    model = SmallZarembaModel(vocab_size)
 
     # model.double()
     if args.cuda:
