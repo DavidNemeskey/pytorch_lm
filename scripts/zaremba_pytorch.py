@@ -216,7 +216,7 @@ def main():
     logger.info('=' * 89)
     logger.info('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
         test_loss, math.exp(test_loss)))
-    logger.info(logger.info * 89)
+    logger.info('-' * 89)
 
 
 if __name__ == '__main__':
