@@ -123,7 +123,8 @@ def read_config(config_file, vocab_size):
         config = json.load(inf)
     model = create_object(config['model'], base_module='pytorch_lm.model',
                           args=[vocab_size])
-    optimizer = create_object(config['optimizer'], base_module='torch.optim')
+    optimizer = create_object(config['optimizer'], base_module='torch.optim',
+                              args=model.parameters())
     if 'lr_scheduler' in config:
         lr_scheduler = create_object(config['lr_scheduler'],
                                      base_module='pytorch_lm.lr_schedule',
