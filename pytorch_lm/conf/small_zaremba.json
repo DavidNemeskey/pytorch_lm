@@ -15,5 +15,6 @@
 	},
 	"num_epochs": 13,
 	"batch_size": 20,
-	"num_steps": 20
+	"num_steps": 20,
+	"grad_clip": 5
 }

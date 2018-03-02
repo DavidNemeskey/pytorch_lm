@@ -9,12 +9,12 @@
 	"lr_scheduler": {
 		"class": "ZarembaScheduleLR",
 		"kwargs": {
-			"lr_decay": 0.83,
-			"decay_delay": 6
+			"lr_decay": 0.87,
+			"decay_delay": 14
 		}
 	},
-	"num_epochs": 39,
+	"num_epochs": 55,
 	"batch_size": 20,
 	"num_steps": 35,
-	"grad_clip": 5
+	"grad_clip": 10
 }

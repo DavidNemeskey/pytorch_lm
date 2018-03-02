@@ -6,7 +6,6 @@ Implements the small model from Zaremba (2014).
 """
 
 import argparse
-import json
 import math
 import time
 
@@ -15,8 +14,8 @@ from torch.autograd import Variable
 
 from pytorch_lm.data import Corpus, batchify, get_batch
 from pytorch_lm.loss import SequenceLoss
-from pytorch_lm.lr_schedule import ConstantLR
-from pytorch_lm.utils.config import get_config_file, create_object
+from pytorch_lm.utils.config import read_config
+from pytorch_lm.utils.lang import getall
 from pytorch_lm.utils.logging import setup_stream_logger
 
 
@@ -45,8 +44,10 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def train(model, corpus, train_data, criterion, optimizer, lr_schedule,
-          epoch, batch_size, num_steps, log_interval):
+def train(model, corpus, config, train_data, criterion, epoch, log_interval):
+    optimizer, lr_schedule, batch_size, num_steps, grad_clip = getall(
+        config, ['optimizer', 'lr_schedule',
+                 'batch_size', 'num_steps', 'grad_clip'])
     # Turn on training mode which enables dropout.
     model.train()
     lr_schedule.step()
@@ -71,7 +72,8 @@ def train(model, corpus, train_data, criterion, optimizer, lr_schedule,
         loss.backward()
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-        torch.nn.utils.clip_grad_norm(model.parameters(), 5.0)
+        if grad_clip:
+            torch.nn.utils.clip_grad_norm(model.parameters(), grad_clip)
 
         optimizer.step()
         # for name, p in model.named_parameters():
@@ -114,27 +116,6 @@ def repackage_hidden(h):
         return [repackage_hidden(v) for v in h]
 
 
-def read_config(config_file, vocab_size):
-    """
-    Reads the configuration file, and creates the model, optimizer and
-    learning rate schedule objects used by the training process.
-    """
-    with open(get_config_file(config_file)) as inf:
-        config = json.load(inf)
-    model = create_object(config['model'], base_module='pytorch_lm.model',
-                          args=[vocab_size])
-    optimizer = create_object(config['optimizer'], base_module='torch.optim',
-                              args=[model.parameters()])
-    if 'lr_scheduler' in config:
-        lr_scheduler = create_object(config['lr_scheduler'],
-                                     base_module='pytorch_lm.lr_schedule',
-                                     args=[optimizer])
-    else:
-        lr_scheduler = ConstantLR(optimizer)
-    return (model, optimizer, lr_scheduler, config['num_epochs'],
-            config['batch_size'], config['num_steps'])
-
-
 def main():
     args = parse_arguments()
 
@@ -161,12 +142,14 @@ def main():
     # Build the model, etc.
     ###############################################################################
 
-    (model, optimizer, lr_schedule,
-     num_epochs, batch_size, num_steps) = read_config(args.config_file, vocab_size)
-    train_batch_size = eval_batch_size = batch_size
-    train_data = batchify(corpus.train, train_batch_size, args.cuda)
-    val_data = batchify(corpus.valid, eval_batch_size, args.cuda)
-    test_data = batchify(corpus.test, eval_batch_size, args.cuda)
+    config = read_config(args.config_file, vocab_size)
+    traind, validd, testd = getall(config, ['train', 'valid', 'test'])
+    train_data = batchify(corpus.train, traind['batch_size'], args.cuda)
+    valid_data = batchify(corpus.valid, validd['batch_size'], args.cuda)
+    test_data = batchify(corpus.test, testd['batch_size'], args.cuda)
+
+    model, optimizer, lr_schedule = getall(
+        traind, ['model', 'optimizer', 'lr_schedul'])
 
     # model.double()
     if args.cuda:
@@ -185,12 +168,14 @@ def main():
 
     # At any point you can hit Ctrl + C to break out of training early.
     try:
-        for epoch in range(1, num_epochs + 1):
+        for epoch in range(1, traind['num_epochs'] + 1):
             epoch_start_time = time.time()
             train(model, corpus, train_data, criterion, optimizer, lr_schedule,
-                  epoch, train_batch_size, num_steps, args.log_interval)
-            val_loss = evaluate(model, corpus, val_data,
-                                criterion, eval_batch_size, num_steps)
+                  epoch, traind['batch_size'], traind['num_steps'],
+                  args.log_interval)
+            val_loss = evaluate(model, corpus, valid_data,
+                                criterion, validd['batch_size'],
+                                validd['num_steps'])
             logger.info('-' * 89)
             logger.info('| end of epoch {:3d} | time: {:5.2f}s | '
                         'valid loss {:5.2f} | valid ppl {:8.2f}'.format(
@@ -212,7 +197,7 @@ def main():
 
     # Run on test data.
     test_loss = evaluate(model, corpus, test_data,
-                         criterion, eval_batch_size, num_steps)
+                         criterion, testd['batch_size'], testd['num_steps'])
     logger.info('=' * 89)
     logger.info('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
         test_loss, math.exp(test_loss)))
