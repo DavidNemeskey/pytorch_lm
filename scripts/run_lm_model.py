@@ -115,6 +115,10 @@ def repackage_hidden(h):
     else:
         return [repackage_hidden(v) for v in h]
 
+def initialize_model(model, initializer):
+    for p in model.parameters():
+        initializer(p.weight)
+
 
 def main():
     args = parse_arguments()
@@ -148,8 +152,10 @@ def main():
     valid_data = batchify(corpus.valid, validd['batch_size'], args.cuda)
     test_data = batchify(corpus.test, testd['batch_size'], args.cuda)
 
-    model, optimizer, lr_schedule = getall(
-        traind, ['model', 'optimizer', 'lr_schedul'])
+    model, optimizer, initializer, lr_schedule = getall(
+        traind, ['model', 'optimizer', 'initializer', 'lr_scheduler'])
+
+    initialize_model(model, initializer)
 
     # model.double()
     if args.cuda:

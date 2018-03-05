@@ -6,6 +6,10 @@
 		"class": "torch.optim.SGD",
 		"args": [1.0]
 	},
+	"initializer": {
+		"function": "uniform",
+		"kwargs": {"a": -0.1, "b": 0.1}
+	},
 	"lr_scheduler": {
 		"class": "ZarembaScheduleLR",
 		"kwargs": {

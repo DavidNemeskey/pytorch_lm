@@ -5,20 +5,16 @@ from pytorch_lm.lstm import Lstm
 
 class CustomZarembaModel(nn.Module):
     """Implements a generic embedding - LSTM - softmax LM."""
-    def __init__(self, vocab_size, hidden_size=200, num_layers=2,
-                 weight_scale=0.1, dropout=0.5, init_weights=True):
+    def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5):
         super(CustomZarembaModel, self).__init__()
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.weight_scale = weight_scale
         self.dropout = dropout
 
         self.encoder = nn.Embedding(vocab_size, hidden_size)
         self.rnn = Lstm(hidden_size, hidden_size, num_layers, dropout)
         self.decoder = nn.Linear(hidden_size, vocab_size)
-        if init_weights:
-            self.init_weights(weight_scale)
 
     def init_weights(self, initrange):
         """Weight are initialized to between - and + initrange uniformly."""
@@ -40,17 +36,17 @@ class CustomZarembaModel(nn.Module):
 
 class SmallZarembaModel(CustomZarembaModel):
     def __init__(self, vocab_size):
-        super(SmallZarembaModel, self).__init__(vocab_size, 200, 2, 0.1, 0)
+        super(SmallZarembaModel, self).__init__(vocab_size, 200, 2, 0)
 
 
 class MediumZarembaModel(CustomZarembaModel):
     def __init__(self, vocab_size):
-        super(MediumZarembaModel, self).__init__(vocab_size, 650, 2, 0.05, 0.5)
+        super(MediumZarembaModel, self).__init__(vocab_size, 650, 2, 0.5)
 
 
 class LargeZarembaModel(CustomZarembaModel):
     def __init__(self, vocab_size):
-        super(LargeZarembaModel, self).__init__(vocab_size, 1500, 2, 0.04, 0.65)
+        super(LargeZarembaModel, self).__init__(vocab_size, 1500, 2, 0.65)
 
 
 class PressAndWolfModel(CustomZarembaModel):
@@ -62,25 +58,23 @@ class PressAndWolfModel(CustomZarembaModel):
     "Tying Word Vectors and Word Classifiers: A Loss Framework for Language Modeling" (Inan et al. 2016)
     https://arxiv.org/abs/1611.01462
     """
-    def __init__(self, vocab_size, hidden_size=200, num_layers=2,
-                 weight_scale=0.1, dropout=0.5):
+    def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5):
         super(PressAndWolfModel, self).__init__(
-            vocab_size, hidden_size, num_layers, weight_scale, dropout, False)
+            vocab_size, hidden_size, num_layers, dropout)
         # Linear.weight is transposed, so this will just work
         self.decoder.weight = self.encoder.weight
-        self.init_weights()
 
 
 class SmallPressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
-        super(SmallPressAndWolfModel, self).__init__(vocab_size, 200, 2, 0.1, 0)
+        super(SmallPressAndWolfModel, self).__init__(vocab_size, 200, 2, 0)
 
 
 class MediumPressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
-        super(MediumPressAndWolfModel, self).__init__(vocab_size, 650, 2, 0.05, 0.5)
+        super(MediumPressAndWolfModel, self).__init__(vocab_size, 650, 2, 0.5)
 
 
 class LargePressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
-        super(LargePressAndWolfModel, self).__init__(vocab_size, 1500, 2, 0.04, 0.65)
+        super(LargePressAndWolfModel, self).__init__(vocab_size, 1500, 2, 0.65)
