@@ -65,11 +65,11 @@ class PressAndWolfModel(CustomZarembaModel):
     "Tying Word Vectors and Word Classifiers: A Loss Framework for Language Modeling" (Inan et al. 2016)
     https://arxiv.org/abs/1611.01462
 
-    The default is no weight tying and no projection -- i.e. it defaults to
-    the usual Zaremba model.
+    The default is weight tying and projection with lambda = 0.15, as in the
+    paper.
     """
     def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
-                 projection_lambda=0, weight_tying=False):
+                 projection_lambda=0.15, weight_tying=True):
         super(PressAndWolfModel, self).__init__(
             vocab_size, hidden_size, num_layers, dropout)
         if weight_tying:
