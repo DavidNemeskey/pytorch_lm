@@ -46,7 +46,7 @@ def parse_arguments():
 
 def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     optimizer, lr_schedule, batch_size, num_steps, grad_clip = getall(
-        config, ['optimizer', 'lr_schedule',
+        config, ['optimizer', 'lr_scheduler',
                  'batch_size', 'num_steps', 'grad_clip'])
     # Turn on training mode which enables dropout.
     model.train()
@@ -170,9 +170,8 @@ def main():
     try:
         for epoch in range(1, traind['num_epochs'] + 1):
             epoch_start_time = time.time()
-            train(model, corpus, train_data, criterion, optimizer, lr_schedule,
-                  epoch, traind['batch_size'], traind['num_steps'],
-                  args.log_interval)
+            train(model, corpus, traind, train_data, criterion,
+                  epoch, args.log_interval)
             val_loss = evaluate(model, corpus, valid_data,
                                 criterion, validd['batch_size'],
                                 validd['num_steps'])

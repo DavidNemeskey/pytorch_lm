@@ -3,7 +3,7 @@
 """Auxiliary functions for standard classes."""
 
 
-def getall(d, *keys, default=None):
+def getall(d, keys, default=None):
     """
     Calls get() for all of the listed keys and returns an iterator to the
     values extracted from dict.
