@@ -30,6 +30,8 @@ def parse_arguments():
     parser.add_argument('--data', '-d', type=str, default='./data/wikitext-2',
                         help='location of the data corpus (files called '
                              'train|valid|test.txt).')
+    parser.add_argument('--dont-shuffle', dest='shuffle', action='store_false',
+                        help='do not shuffle the sentences in the training set.')
     parser.add_argument('--model', '-m', type=str, default='LSTM',
                         help='the model key name.')
     parser.add_argument('--seed', '-s', type=int, default=1111, help='random seed')
@@ -139,7 +141,7 @@ def main():
     # Load data
     ###############################################################################
 
-    corpus = Corpus(args.data)
+    corpus = Corpus(args.data, args.shuffle)
     vocab_size = len(corpus.dictionary)
 
     ###############################################################################
