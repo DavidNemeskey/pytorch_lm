@@ -68,7 +68,7 @@ class PressAndWolfModel(CustomZarembaModel):
             vocab_size, hidden_size, num_layers, weight_scale, dropout, False)
         # Linear.weight is transposed, so this will just work
         self.decoder.weight = self.encoder.weight
-        self.init_weights()
+        self.init_weights(weight_scale)
 
 
 class SmallPressAndWolfModel(PressAndWolfModel):
