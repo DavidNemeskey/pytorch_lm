@@ -76,7 +76,7 @@ class PressAndWolfModel(CustomZarembaModel):
             # Linear.weight is transposed, so this will just work
             self.decoder.weight = self.encoder.weight
         if projection_lambda:
-            self.projection = nn.Linear(hidden_size, hidden_size)
+            self.projection = nn.Linear(hidden_size, hidden_size, bias=False)
             self.projection_lambda = projection_lambda
         else:
             self.projection = None
@@ -94,7 +94,7 @@ class PressAndWolfModel(CustomZarembaModel):
     def loss_regularizer(self):
         """The regularizing term (if any) that is added to the loss."""
         if self.projection:
-            return self.projection.norm() * self.projection_lambda
+            return self.projection.weight.norm() * self.projection_lambda
         else:
             return 0
 
