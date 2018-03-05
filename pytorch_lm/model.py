@@ -16,12 +16,6 @@ class CustomZarembaModel(nn.Module):
         self.rnn = Lstm(hidden_size, hidden_size, num_layers, dropout)
         self.decoder = nn.Linear(hidden_size, vocab_size)
 
-    def init_weights(self, initrange):
-        """Weight are initialized to between - and + initrange uniformly."""
-        self.encoder.weight.data.uniform_(-initrange, initrange)
-        self.decoder.bias.data.uniform_(-initrange, initrange)  # fill_(0)
-        self.decoder.weight.data.uniform_(-initrange, initrange)
-
     def forward(self, input, hidden):
         emb = self.encoder(input)
         # self.rnn.flatten_parameters()
