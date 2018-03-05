@@ -68,7 +68,7 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
         hidden = repackage_hidden(hidden)
         model.zero_grad()
         output, hidden = model(data, hidden)
-        loss = criterion(output, targets)
+        loss = criterion(output, targets) + model.loss_regularizer()
         loss.backward()
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
