@@ -72,16 +72,16 @@ class PressAndWolfModel(CustomZarembaModel):
         self.init_weights()
 
 
-class SmallPressAndWolfModel(CustomZarembaModel):
+class SmallPressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
         super(SmallPressAndWolfModel, self).__init__(vocab_size, 200, 2, 0.1, 0)
 
 
-class MediumPressAndWolfModel(CustomZarembaModel):
+class MediumPressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
         super(MediumPressAndWolfModel, self).__init__(vocab_size, 650, 2, 0.05, 0.5)
 
 
-class LargePressAndWolfModel(CustomZarembaModel):
+class LargePressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
         super(LargePressAndWolfModel, self).__init__(vocab_size, 1500, 2, 0.04, 0.65)
