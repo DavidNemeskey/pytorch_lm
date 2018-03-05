@@ -117,7 +117,7 @@ def repackage_hidden(h):
 
 def initialize_model(model, initializer):
     for p in model.parameters():
-        initializer(p.weight)
+        initializer(p.data)
 
 
 def main():
