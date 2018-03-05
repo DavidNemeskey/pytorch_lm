@@ -1,0 +1,20 @@
+{
+	"model": {
+		"class": "SmallPressAndWolfModel"
+	},
+	"optimizer": {
+		"class": "torch.optim.SGD",
+		"args": [1.0]
+	},
+	"lr_scheduler": {
+		"class": "ZarembaScheduleLR",
+		"kwargs": {
+			"lr_decay": 0.5,
+			"decay_delay": 4
+		}
+	},
+	"num_epochs": 13,
+	"batch_size": 20,
+	"num_steps": 20,
+	"grad_clip": 5
+}
