@@ -64,7 +64,7 @@ class PressAndWolfModel(CustomZarembaModel):
     """
     def __init__(self, vocab_size, hidden_size=200, num_layers=2,
                  weight_scale=0.1, dropout=0.5):
-        super(CustomZarembaModel).__init__(
+        super(CustomZarembaModel, self).__init__(
             vocab_size, hidden_size, num_layers, weight_scale, dropout, False)
         # Linear.weight is transposed, so this will just work
         self.decoder.weight = self.encoder.weight
