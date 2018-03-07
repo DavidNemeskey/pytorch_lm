@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # vim: set fileencoding=utf-8 :
 
-"""
-Implements the small model from Zaremba (2014).
-"""
+"""Generic language model training script."""
 
 import argparse
 import math
@@ -24,14 +22,18 @@ logger = None
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description='Modification of the PyTorch Wikitext-2 RNN/LSTM Language '
-                    'Model, so that it actually does what Zaremba (2014) '
-                    'described.')
+        description='Generic language model training script. It can train a '
+                    'selection of language models, starting with (the correct '
+                    'reimplementation of) Zaremba et al. (2014).\n\n'
+                    'Based on the PyTorch Wikitext-2 RNN/LSTM Language Model.')
     parser.add_argument('--data', '-d', type=str, default='./data/wikitext-2',
                         help='location of the data corpus (files called '
                              'train|valid|test.txt).')
     parser.add_argument('--dont-shuffle', dest='shuffle', action='store_false',
-                        help='do not shuffle the sentences in the training set.')
+                        help='do not shuffle the sentences in the training set.'
+                             'Note that most papers (starting with Zaremba '
+                             'et at. (2014)) published results for an '
+                             'unshuffled PTB.')
     parser.add_argument('--model', '-m', type=str, default='LSTM',
                         help='the model key name.')
     parser.add_argument('--seed', '-s', type=int, default=1111, help='random seed')
