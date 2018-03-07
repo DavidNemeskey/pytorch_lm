@@ -6,6 +6,7 @@ Taken from the word_language_model directory of the pytorch/examples repository.
 """
 
 import os
+import random
 
 import numpy as np
 import torch
@@ -27,35 +28,27 @@ class Dictionary(object):
 
 
 class Corpus(object):
-    def __init__(self, path):
+    def __init__(self, path, shuffle_train=True):
         self.dictionary = Dictionary()
-        self.train = self.tokenize(os.path.join(path, 'train.txt'))
-        self.valid = self.tokenize(os.path.join(path, 'valid.txt'))
-        self.test = self.tokenize(os.path.join(path, 'test.txt'))
+        self.train = self.tokenize(os.path.join(path, 'train.txt'), shuffle_train)
+        self.valid = self.tokenize(os.path.join(path, 'valid.txt'), False)
+        self.test = self.tokenize(os.path.join(path, 'test.txt'), False)
 
-    def tokenize(self, path):
-        """Tokenizes a text file."""
+    def tokenize(self, path, shuffle):
+        """Tokenizes a text file. Optionally shuffles the sentences."""
         assert os.path.exists(path)
         # Add words to the dictionary
+        text = []
         with open(path, 'r') as f:
             tokens = 0
             for line in f:
                 words = line.split() + ['<eos>']
                 tokens += len(words)
-                for word in words:
-                    self.dictionary.add_word(word)
+                text.append([self.dictionary.add_word(word) for word in words])
+        if shuffle:
+            random.shuffle(text)
 
-        # Tokenize file content
-        with open(path, 'r') as f:
-            ids = np.zeros([tokens], dtype=np.int32)
-            token = 0
-            for line in f:
-                words = line.split() + ['<eos>']
-                for word in words:
-                    ids[token] = self.dictionary.word2idx[word]
-                    token += 1
-
-        return ids
+        return np.array([wid for sentence in text for wid in sentence])
 
 
 def batchify(data, bsz, cuda):

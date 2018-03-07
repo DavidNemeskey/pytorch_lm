@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # vim: set fileencoding=utf-8 :
 
-"""
-Implements the small model from Zaremba (2014).
-"""
+"""Generic language model training script."""
 
 import argparse
 import math
@@ -24,12 +22,18 @@ logger = None
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description='Modification of the PyTorch Wikitext-2 RNN/LSTM Language '
-                    'Model, so that it actually does what Zaremba (2014) '
-                    'described.')
+        description='Generic language model training script. It can train a '
+                    'selection of language models, starting with (the correct '
+                    'reimplementation of) Zaremba et al. (2014).\n\n'
+                    'Based on the PyTorch Wikitext-2 RNN/LSTM Language Model.')
     parser.add_argument('--data', '-d', type=str, default='./data/wikitext-2',
                         help='location of the data corpus (files called '
                              'train|valid|test.txt).')
+    parser.add_argument('--dont-shuffle', dest='shuffle', action='store_false',
+                        help='do not shuffle the sentences in the training set.'
+                             'Note that most papers (starting with Zaremba '
+                             'et at. (2014)) published results for an '
+                             'unshuffled PTB.')
     parser.add_argument('--model', '-m', type=str, default='LSTM',
                         help='the model key name.')
     parser.add_argument('--seed', '-s', type=int, default=1111, help='random seed')
@@ -60,8 +64,8 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     for batch, i in enumerate(range(0, data_len - 1, num_steps)):
         data, targets = get_batch(train_data, i, num_steps)
 
-        def to_str(f):
-            return corpus.dictionary.idx2word[f]
+        # def to_str(f):
+        #     return corpus.dictionary.idx2word[f]
 
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
@@ -139,7 +143,7 @@ def main():
     # Load data
     ###############################################################################
 
-    corpus = Corpus(args.data)
+    corpus = Corpus(args.data, args.shuffle)
     vocab_size = len(corpus.dictionary)
 
     ###############################################################################
