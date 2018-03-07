@@ -62,8 +62,8 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     for batch, i in enumerate(range(0, data_len - 1, num_steps)):
         data, targets = get_batch(train_data, i, num_steps)
 
-        def to_str(f):
-            return corpus.dictionary.idx2word[f]
+        # def to_str(f):
+        #     return corpus.dictionary.idx2word[f]
 
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
