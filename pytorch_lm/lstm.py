@@ -8,6 +8,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
+from pytorch_lm.dropout import Dropout
+
 
 class LstmCell(nn.Module):
     """
@@ -33,6 +35,7 @@ class LstmCell(nn.Module):
         self.hidden_size = hidden_size
         self.bias = bias
         self.dropout = dropout
+        self.do = Dropout(self.dropout)
 
         self.w_i = nn.Parameter(torch.Tensor(input_size, 4 * hidden_size))
         self.w_h = nn.Parameter(torch.Tensor(hidden_size, 4 * hidden_size))
@@ -75,7 +78,8 @@ class LstmCell(nn.Module):
         h_t, c_t = hidden
 
         if self.dropout:
-            input = F.dropout(input, p=self.dropout, training=self.training)
+            # input = F.dropout(input, p=self.dropout, training=self.training)
+            input = self.do(input)
         ifgo = input.matmul(self.w_i) + h_t.matmul(self.w_h)
 
         if self.bias:
