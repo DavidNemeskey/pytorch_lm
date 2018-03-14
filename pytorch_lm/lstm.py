@@ -19,13 +19,11 @@ class LstmCell(nn.Module):
 
     As a reminder: input size is batch_size x input_features.
     """
-    def __init__(self, input_size, hidden_size, bias=True, dropout=0):
+    def __init__(self, input_size, hidden_size, dropout=0):
         """
         Args:
             - input_size: the number of input features
             - hidden_size: the number of cells
-            - bias: whether to use biases. The default is True. Will be removed,
-                    because why would anyone not use them?
             - dropout: Following Zaremba (2014), dropout is applied on the
                        input tensor.
         """
@@ -33,18 +31,29 @@ class LstmCell(nn.Module):
         # TODO: add forget_bias
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.bias = bias
         self.dropout = dropout
-        self.do = Dropout(self.dropout)
+        self.do = self.create_dropouts()
 
         self.w_i = nn.Parameter(torch.Tensor(input_size, 4 * hidden_size))
         self.w_h = nn.Parameter(torch.Tensor(hidden_size, 4 * hidden_size))
-
-        if bias:
-            self.b_i = nn.Parameter(torch.Tensor(4 * hidden_size))
-            self.b_h = nn.Parameter(torch.Tensor(4 * hidden_size))
+        self.b_i = nn.Parameter(torch.Tensor(4 * hidden_size))
+        self.b_h = nn.Parameter(torch.Tensor(4 * hidden_size))
 
         self.reset_parameters()
+
+    def create_dropouts(self, dropout):
+        """Creates the dropout objects. This is one method to be implemented."""
+        raise NotImplementedError()
+
+    def output_dropout(self):
+        """
+        Returns the output :class:`Dropout` object handled by the Lstm class.
+        """
+        raise NotImplementedError()
+
+    def forward(self, input, hidden):
+        """Of course, forward must be implemented in subclasses."""
+        raise NotImplementedError()
 
     def reset_parameters(self, initrange=0.1):
         """Initializes the parameters uniformly to between -/+ initrange."""
@@ -74,27 +83,6 @@ class LstmCell(nn.Module):
                 t = t.cuda()
             setattr(self, real_name, nn.Parameter(t))
 
-    def forward(self, input, hidden):
-        h_t, c_t = hidden
-
-        if self.dropout:
-            # input = F.dropout(input, p=self.dropout, training=self.training)
-            input = self.do(input)
-        ifgo = input.matmul(self.w_i) + h_t.matmul(self.w_h)
-
-        if self.bias:
-            ifgo += self.b_i + self.b_h
-
-        i, f, g, o = ifgo.chunk(4, 1)
-        i = torch.sigmoid(i)
-        f = torch.sigmoid(f)
-        g = torch.tanh(g)
-        o = torch.sigmoid(o)
-        c_t = f * c_t + i * g
-        h_t = o * torch.tanh(c_t)
-
-        return h_t, c_t
-
     def init_hidden(self, batch_size=0, np_arrays=None):
         """
         Returns the Variables for the hidden states. If batch_size is specified,
@@ -113,6 +101,65 @@ class LstmCell(nn.Module):
             ret = (Variable(torch.from_numpy(np_arrays[0]).type(self.w_i.type())),
                    Variable(torch.from_numpy(np_arrays[1]).type(self.w_i.type())))
         return ret
+
+
+class ZarembaLstmCell(LstmCell):
+    """Following Zaremba (2014), dropout is applied on the input tensor."""
+    def create_dropouts(self, dropout):
+        return [Dropout(self.dropout)]
+
+    def output_dropout(self):
+        """
+        Returns the output :class:`Dropout` object handled by the Lstm class.
+        """
+        return Dropout(self.dropout)
+
+    def forward(self, input, hidden):
+        h_t, c_t = hidden
+
+        if self.dropout:
+            # input = F.dropout(input, p=self.dropout, training=self.training)
+            input = self.do(input)
+        ifgo = input.matmul(self.w_i) + h_t.matmul(self.w_h)
+        ifgo += self.b_i + self.b_h
+
+        i, f, g, o = ifgo.chunk(4, 1)
+        i = torch.sigmoid(i)
+        f = torch.sigmoid(f)
+        g = torch.tanh(g)
+        o = torch.sigmoid(o)
+        c_t = f * c_t + i * g
+        h_t = o * torch.tanh(c_t)
+
+        return h_t, c_t
+
+
+class MoonLstm(LstmCell):
+    """Following Moon (2015), dropout is applied on c_t. Note: this sucks."""
+    def create_dropouts(self):
+        return [Dropout(self.dropout, per_sequence=True)]
+
+    def output_dropout(self):
+        """
+        Returns the output :class:`Dropout` object handled by the Lstm class.
+        """
+        return Dropout(self.dropout, per_sequence=True)
+
+    def forward(self, input, hidden):
+        h_t, c_t = hidden
+
+        ifgo = input.matmul(self.w_i) + h_t.matmul(self.w_h)
+        ifgo += self.b_i + self.b_h
+
+        i, f, g, o = ifgo.chunk(4, 1)
+        i = torch.sigmoid(i)
+        f = torch.sigmoid(f)
+        g = torch.tanh(g)
+        o = torch.sigmoid(o)
+        c_t = self.do[0](f * c_t + i * g)
+        h_t = o * torch.tanh(c_t)
+
+        return h_t, c_t
 
 
 class Lstm(nn.Module):
@@ -141,6 +188,11 @@ class Lstm(nn.Module):
     def forward(self, input, hiddens):
         # print('III', input.size(), type(hiddens))
         outputs = []
+
+        # To initialize per-sequence dropout
+        for l in self.layers:
+            l.new_sequence()
+
         # chunk() cuts batch_size x 1 x input_size chunks from input
         for input_t in input.chunk(input.size(1), dim=1):
             values = input_t.squeeze(1)  # From input to output
