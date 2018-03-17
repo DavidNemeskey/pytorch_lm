@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-from pytorch_lm.dropout import Dropout
+from pytorch_lm.dropout import StatelessDropout, StatefulDropout
 
 
 class LstmCell(nn.Module):
@@ -41,7 +41,7 @@ class LstmCell(nn.Module):
 
         self.reset_parameters()
 
-    def create_dropouts(self, dropout):
+    def create_dropouts(self):
         """Creates the dropout objects. This is one method to be implemented."""
         raise NotImplementedError()
 
@@ -104,23 +104,20 @@ class LstmCell(nn.Module):
 
 
 class ZarembaLstmCell(LstmCell):
-    """Following Zaremba (2014), dropout is applied on the input tensor."""
-    def create_dropouts(self, dropout):
-        return [Dropout(self.dropout)]
+    """Following Zaremba et al. (2014), dropout is applied on the input tensor."""
+    def create_dropouts(self):
+        return StatelessDropout(self.dropout)
 
     def output_dropout(self):
         """
         Returns the output :class:`Dropout` object handled by the Lstm class.
         """
-        return Dropout(self.dropout)
+        return self.do
 
     def forward(self, input, hidden):
         h_t, c_t = hidden
 
-        if self.dropout:
-            # input = F.dropout(input, p=self.dropout, training=self.training)
-            input = self.do(input)
-        ifgo = input.matmul(self.w_i) + h_t.matmul(self.w_h)
+        ifgo = self.do(input).matmul(self.w_i) + h_t.matmul(self.w_h)
         ifgo += self.b_i + self.b_h
 
         i, f, g, o = ifgo.chunk(4, 1)
@@ -135,15 +132,18 @@ class ZarembaLstmCell(LstmCell):
 
 
 class MoonLstm(LstmCell):
-    """Following Moon (2015), dropout is applied on c_t. Note: this sucks."""
+    """
+    Following Moon et al. (2015), dropout (with a per-sequence mask) is applied
+    on c_t. Note: this sucks.
+    """
     def create_dropouts(self):
-        return [Dropout(self.dropout, per_sequence=True)]
+        return StatefulDropout(self.dropout)
 
     def output_dropout(self):
         """
         Returns the output :class:`Dropout` object handled by the Lstm class.
         """
-        return Dropout(self.dropout, per_sequence=True)
+        return self.create_dropouts()
 
     def forward(self, input, hidden):
         h_t, c_t = hidden
@@ -156,7 +156,111 @@ class MoonLstm(LstmCell):
         f = torch.sigmoid(f)
         g = torch.tanh(g)
         o = torch.sigmoid(o)
-        c_t = self.do[0](f * c_t + i * g)
+        c_t = self.do(f * c_t + i * g)
+        h_t = o * torch.tanh(c_t)
+
+        return h_t, c_t
+
+
+class TiedGalLstm(LstmCell):
+    """
+    Following Gal and Ghahramani (2016), per-sequence dropout is applied on
+    both the input and h_t. Also known as VD-LSTM. With tied gates.
+    """
+    def create_dropouts(self):
+        return [StatefulDropout(self.dropout)
+                for _ in range(2)]
+
+    def output_dropout(self):
+        """
+        Returns the output :class:`Dropout` object handled by the Lstm class.
+        """
+        return StatefulDropout(self.dropout)
+
+    def forward(self, input, hidden):
+        h_t, c_t = hidden
+
+        ifgo = self.do[0](input).matmul(self.w_i) + self.do[1](h_t).matmul(self.w_h)
+        ifgo += self.b_i + self.b_h
+
+        i, f, g, o = ifgo.chunk(4, 1)
+        i = torch.sigmoid(i)
+        f = torch.sigmoid(f)
+        g = torch.tanh(g)
+        o = torch.sigmoid(o)
+        c_t = f * c_t + i * g
+        h_t = o * torch.tanh(c_t)
+
+        return h_t, c_t
+
+
+class UntiedGalLstm(LstmCell):
+    """
+    Following Gal and Ghahramani (2016), per-sequence dropout is applied on
+    both the input and h_t. Also known as VD-LSTM. With untied weights.
+    """
+    def create_dropouts(self):
+        return [StatefulDropout(self.dropout)
+                for _ in range(8)]
+
+    def output_dropout(self):
+        """
+        Returns the output :class:`Dropout` object handled by the Lstm class.
+        """
+        return StatefulDropout(self.dropout)
+
+    def forward(self, input, hidden):
+        h_t, c_t = hidden
+
+        w_ii, w_if, w_ig, w_io = self.w_i.chunk(4, 1)
+        w_hi, w_hf, w_hg, w_ho = self.w_h.chunk(4, 1)
+        b_ii, b_if, b_ig, b_io = self.b_i.chunk(4, 1)
+        b_hi, b_hf, b_hg, b_ho = self.b_h.chunk(4, 1)
+
+        i = torch.sigmoid(self.do[0](input).matmul(w_ii) +
+                          self.do[1](h_t).matmul(w_hi) + b_ii + b_hi)
+        f = torch.sigmoid(self.do[2](input).matmul(w_if) +
+                          self.do[3](h_t).matmul(w_hf) + b_if + b_hf)
+        g = torch.tanh(self.do[4](input).matmul(w_ig) +
+                       self.do[5](h_t).matmul(w_hg) + b_ig + b_hg)
+        o = torch.sigmoid(self.do[6](input).matmul(w_io) +
+                          self.do[7](h_t).matmul(w_ho) + b_io + b_ho)
+        c_t = f * c_t + i * g
+        h_t = o * torch.tanh(c_t)
+
+        return h_t, c_t
+
+
+class SemeniutaLstm(LstmCell):
+    """Following Semeniuta et al. (2016), dropout is applied on g_t."""
+    def __init__(self, input_size, hidden_size, per_sequence=False, dropout=0):
+        self.per_sequence = per_sequence
+        super(SemeniutaLstm, self).__init__(input_size, hidden_size, dropout)
+
+    def create_dropouts(self):
+        if self.per_sequence:
+            return StatefulDropout(self.dropout)
+        else:
+            return StatelessDropout(self.dropout)
+
+    def output_dropout(self):
+        """
+        Returns the output :class:`Dropout` object handled by the Lstm class.
+        """
+        return self.create_dropouts()
+
+    def forward(self, input, hidden):
+        h_t, c_t = hidden
+
+        ifgo = input.matmul(self.w_i) + h_t.matmul(self.w_h)
+        ifgo += self.b_i + self.b_h
+
+        i, f, g, o = ifgo.chunk(4, 1)
+        i = torch.sigmoid(i)
+        f = torch.sigmoid(f)
+        g = torch.tanh(g)
+        o = torch.sigmoid(o)
+        c_t = f * c_t + i * self.do(g)
         h_t = o * torch.tanh(c_t)
 
         return h_t, c_t

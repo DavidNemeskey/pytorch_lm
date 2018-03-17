@@ -8,8 +8,8 @@ import torch.nn as nn
 
 
 class Dropout(nn.Module):
-    """The basic dropout version."""
-    def __init__(self, p=0, per_sequence=False):
+    """Base class for the two dropout variants."""
+    def __init__(self, p=0):
         """
         Constructor.
 
@@ -24,8 +24,6 @@ class Dropout(nn.Module):
         if p < 0 or 1 < p:
             raise ValueError('Dropout: p must be between 0 and 1')
         self.p = p
-        self.per_sequence = per_sequence
-        self.noise = None
 
     def make_noise(self, x):
         """Generates the noise Variable."""
@@ -34,15 +32,47 @@ class Dropout(nn.Module):
             noise.fill_(0)
         else:
             noise.bernoulli_(1 - self.p).div_(1 - self.p)
-        self.noise = noise
+        return noise
 
-    def new_sequence(self):
-        """To be called at the start of each new sequence."""
+    def reset_noise(self):
+        """Resets the noise mask, at e.g. the beginning of a sequence."""
+        raise NotImplementedError('reset_noise not implemented in {}'.format(
+            self.__class__.__name__))
+
+    def forward(self, x):
+        raise NotImplementedError('forward not implemented in {}'.format(
+            self.__class__.__name__))
+
+
+class StatelessDropout(Dropout):
+    """The regular stateless dropout."""
+    def reset_noise(self):
+        """A no-op."""
+        pass
+
+    def forward(self, x):
+        if self.training:
+            return torch.mul(x, self.make_noise(x))  # expand_as?
+        else:
+            return x
+
+
+class StatefulDropout(Dropout):
+    """
+    A new noise mask is not generated for every input; rather, the mask is
+    generated whenever it is not available. The usual use-case is per-sequence
+    dropout for RNNs, where :func:`reset_noise` is called before processing the
+    sequence.
+
+    Because this dropout class is stateful, it should not be used concurrently.
+    """
+    def reset_noise(self):
+        """Resets the noise mask, at e.g. the beginning of a sequence."""
         self.noise = None
 
     def forward(self, x):
         if self.training:
-            if self.noise is None or not self.per_sequence:
+            if self.noise is None:
                 self.make_noise(x)
             return torch.mul(x, self.noise)  # expand_as?
         else:
