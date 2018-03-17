@@ -51,7 +51,7 @@ class StatelessDropout(Dropout):
         pass
 
     def forward(self, x):
-        if self.training:
+        if self.training and self.p:
             return torch.mul(x, self.make_noise(x))  # expand_as?
         else:
             return x
@@ -71,7 +71,7 @@ class StatefulDropout(Dropout):
         self.noise = None
 
     def forward(self, x):
-        if self.training:
+        if self.training and self.p:
             if self.noise is None:
                 self.make_noise(x)
             return torch.mul(x, self.noise)  # expand_as?
