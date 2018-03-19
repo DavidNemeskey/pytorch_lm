@@ -16,10 +16,10 @@ class LMModel(nn.Module):
         return 0
 
 
-class CustomZarembaModel(LMModel):
+class GenericLstmModel(LMModel):
     """Implements a generic embedding - LSTM - softmax LM."""
     def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5):
-        super(CustomZarembaModel, self).__init__()
+        super(GenericLstmModel, self).__init__()
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -41,22 +41,22 @@ class CustomZarembaModel(LMModel):
         return self.rnn.init_hidden(batch_size)
 
 
-class SmallZarembaModel(CustomZarembaModel):
+class SmallLstmModel(GenericLstmModel):
     def __init__(self, vocab_size):
-        super(SmallZarembaModel, self).__init__(vocab_size, 200, 2, 0)
+        super(GenericLstmModel, self).__init__(vocab_size, 200, 2, 0)
 
 
-class MediumZarembaModel(CustomZarembaModel):
+class MediumLstmModel(GenericLstmModel):
     def __init__(self, vocab_size):
-        super(MediumZarembaModel, self).__init__(vocab_size, 650, 2, 0.5)
+        super(GenericLstmModel, self).__init__(vocab_size, 650, 2, 0.5)
 
 
-class LargeZarembaModel(CustomZarembaModel):
+class LargeLstmModel(GenericLstmModel):
     def __init__(self, vocab_size):
-        super(LargeZarembaModel, self).__init__(vocab_size, 1500, 2, 0.65)
+        super(GenericLstmModel, self).__init__(vocab_size, 1500, 2, 0.65)
 
 
-class PressAndWolfModel(CustomZarembaModel):
+class PressAndWolfModel(GenericLstmModel):
     """
     Optionally tie weights as in:
     "Using the Output Embedding to Improve Language Models" (Press & Wolf 2016)
