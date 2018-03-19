@@ -5,7 +5,6 @@
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.autograd import Variable
 
 from pytorch_lm.dropout import StatelessDropout, StatefulDropout
@@ -42,7 +41,10 @@ class LstmCell(nn.Module):
         self.reset_parameters()
 
     def create_dropouts(self):
-        """Creates the dropout objects. This is one method to be implemented."""
+        """
+        Creates the ``list`` of :class:`Dropout` objects used by the cell.
+        This is one method to be implemented.
+        """
         raise NotImplementedError()
 
     def output_dropout(self):
@@ -106,18 +108,18 @@ class LstmCell(nn.Module):
 class ZarembaLstmCell(LstmCell):
     """Following Zaremba et al. (2014), dropout is applied on the input tensor."""
     def create_dropouts(self):
-        return StatelessDropout(self.dropout)
+        return [StatelessDropout(self.dropout)]
 
     def output_dropout(self):
         """
         Returns the output :class:`Dropout` object handled by the Lstm class.
         """
-        return self.do
+        return self.do[0]
 
     def forward(self, input, hidden):
         h_t, c_t = hidden
 
-        ifgo = self.do(input).matmul(self.w_i) + h_t.matmul(self.w_h)
+        ifgo = self.do[0](input).matmul(self.w_i) + h_t.matmul(self.w_h)
         ifgo += self.b_i + self.b_h
 
         i, f, g, o = ifgo.chunk(4, 1)
@@ -137,13 +139,13 @@ class MoonLstm(LstmCell):
     on c_t. Note: this sucks.
     """
     def create_dropouts(self):
-        return StatefulDropout(self.dropout)
+        return [StatefulDropout(self.dropout)]
 
     def output_dropout(self):
         """
         Returns the output :class:`Dropout` object handled by the Lstm class.
         """
-        return self.create_dropouts()
+        return StatefulDropout(self.dropout)
 
     def forward(self, input, hidden):
         h_t, c_t = hidden
@@ -156,7 +158,7 @@ class MoonLstm(LstmCell):
         f = torch.sigmoid(f)
         g = torch.tanh(g)
         o = torch.sigmoid(o)
-        c_t = self.do(f * c_t + i * g)
+        c_t = self.do[0](f * c_t + i * g)
         h_t = o * torch.tanh(c_t)
 
         return h_t, c_t
@@ -238,16 +240,16 @@ class SemeniutaLstm(LstmCell):
         super(SemeniutaLstm, self).__init__(input_size, hidden_size, dropout)
 
     def create_dropouts(self):
-        if self.per_sequence:
-            return StatefulDropout(self.dropout)
-        else:
-            return StatelessDropout(self.dropout)
+        return [self.output_dropout()]
 
     def output_dropout(self):
         """
         Returns the output :class:`Dropout` object handled by the Lstm class.
         """
-        return self.create_dropouts()
+        if self.per_sequence:
+            return StatefulDropout(self.dropout)
+        else:
+            return StatelessDropout(self.dropout)
 
     def forward(self, input, hidden):
         h_t, c_t = hidden
@@ -282,11 +284,11 @@ class Lstm(nn.Module):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.dropout = dropout
 
         self.layers = [cell_class(input_size if not l else hidden_size,
                                   hidden_size, dropout=dropout, *args, **kwargs)
                        for l in range(num_layers)]
+        self.dropout = self.layers[-1].output_dropout()
         for l, layer in enumerate(self.layers):
             self.add_module('Layer_{}'.format(l), layer)
 
@@ -296,7 +298,9 @@ class Lstm(nn.Module):
 
         # To initialize per-sequence dropout
         for l in self.layers:
-            l.new_sequence()
+            for do in l.do:
+                do.reset_noise()
+        self.dropout.reset_noise()
 
         # chunk() cuts batch_size x 1 x input_size chunks from input
         for input_t in input.chunk(input.size(1), dim=1):
@@ -307,8 +311,7 @@ class Lstm(nn.Module):
                 hiddens[l] = h_t, c_t
             outputs.append(values)
         outputs = torch.stack(outputs, 1)
-        if self.dropout:
-            outputs = F.dropout(outputs, p=self.dropout, training=self.training)
+        self.dropout(outputs)
         return outputs, hiddens
 
     def init_hidden(self, batch_size):
