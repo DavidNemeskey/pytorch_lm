@@ -233,7 +233,7 @@ class UntiedGalLstm(LstmCell):
 
 class SemeniutaLstm(LstmCell):
     """Following Semeniuta et al. (2016), dropout is applied on g_t."""
-    def __init__(self, input_size, hidden_size, per_sequence=False, dropout=0):
+    def __init__(self, input_size, hidden_size, dropout=0, per_sequence=False):
         self.per_sequence = per_sequence
         super(SemeniutaLstm, self).__init__(input_size, hidden_size, dropout)
 
@@ -276,15 +276,16 @@ class Lstm(nn.Module):
     dropout is applied L + 1 times (once on the input in each layer + once on
     the final output).
     """
-    def __init__(self, input_size, hidden_size, num_layers, dropout=0):
+    def __init__(self, input_size, hidden_size, num_layers, dropout=0,
+                 cell_class=ZarembaLstmCell, *args, **kwargs):
         super(Lstm, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = dropout
 
-        self.layers = [LstmCell(input_size if not l else hidden_size,
-                                hidden_size, dropout=dropout)
+        self.layers = [cell_class(input_size if not l else hidden_size,
+                                  hidden_size, dropout=dropout, *args, **kwargs)
                        for l in range(num_layers)]
         for l, layer in enumerate(self.layers):
             self.add_module('Layer_{}'.format(l), layer)
