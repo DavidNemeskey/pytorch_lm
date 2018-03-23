@@ -5,6 +5,7 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class Dropout(nn.Module):
@@ -32,6 +33,7 @@ class Dropout(nn.Module):
             noise.fill_(0)
         else:
             noise.bernoulli_(1 - self.p).div_(1 - self.p)
+        # print('noise', noise.size(), noise, flush=True)
         return noise
 
     def reset_noise(self):
@@ -52,7 +54,23 @@ class StatelessDropout(Dropout):
 
     def forward(self, x):
         if self.training and self.p:
-            return torch.mul(x, self.make_noise(x))  # expand_as?
+            output = torch.mul(x, self.make_noise(x))  # expand_as?
+            return output
+        else:
+            return x
+
+
+class FunctionalDropout(Dropout):
+    """The regular stateless using the stock dropout function."""
+    def reset_noise(self):
+        """A no-op."""
+        pass
+
+    def forward(self, x):
+        if self.training and self.p:
+            output = F.dropout(x, self.p, training=True)
+            # print('output', output.size(), output, flush=True)
+            return output
         else:
             return x
 
