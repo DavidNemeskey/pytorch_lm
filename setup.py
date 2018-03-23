@@ -53,7 +53,7 @@ setup(name='pytorch_lm',
       },
       # Install the scripts
       scripts=[
-          'scripts/zaremba_pytorch.py',
+          'scripts/run_lm_model.py',
       ],
       test_suite = 'tests',
       # Tensorflow and numpy can be installed from requirement files, as they
