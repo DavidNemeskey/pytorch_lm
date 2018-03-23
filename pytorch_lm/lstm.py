@@ -109,6 +109,7 @@ class ZarembaLstmCell(LstmCell):
     """Following Zaremba et al. (2014), dropout is applied on the input tensor."""
     def create_dropouts(self):
         return [StatelessDropout(self.dropout)]
+        # return [FunctionalDropout(self.dropout)]
 
     def output_dropout(self):
         """
@@ -293,7 +294,6 @@ class Lstm(nn.Module):
             self.add_module('Layer_{}'.format(l), layer)
 
     def forward(self, input, hiddens):
-        # print('III', input.size(), type(hiddens))
         outputs = []
 
         # To initialize per-sequence dropout
@@ -311,7 +311,7 @@ class Lstm(nn.Module):
                 hiddens[l] = h_t, c_t
             outputs.append(values)
         outputs = torch.stack(outputs, 1)
-        self.dropout(outputs)
+        outputs = self.dropout(outputs)
         return outputs, hiddens
 
     def init_hidden(self, batch_size):
