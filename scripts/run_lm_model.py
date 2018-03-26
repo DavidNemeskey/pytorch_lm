@@ -53,6 +53,7 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
         config, ['optimizer', 'lr_scheduler',
                  'batch_size', 'num_steps', 'grad_clip'])
     # Turn on training mode which enables dropout.
+    ### print('TRAIN', flush=True)
     model.train()
     lr_schedule.step()
     lr = lr_schedule.get_lr()[0]
@@ -78,12 +79,15 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         if grad_clip:
             torch.nn.utils.clip_grad_norm(model.parameters(), grad_clip)
+        ### for name, p in model.named_parameters():
+        ###     print('GRAD', name, p.grad.data)
 
         optimizer.step()
         # for name, p in model.named_parameters():
         #     p.data.add_(-1 * lr, p.grad.data)
 
         total_loss += loss.data / num_steps
+        ### print('total loss', total_loss, flush=True)
 
         if batch % log_interval == 0 and batch > 0:
             cur_loss = total_loss[0] / log_interval
@@ -99,6 +103,7 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
 
 def evaluate(model, corpus, data_source, criterion, batch_size, num_steps):
     # Turn on evaluation mode which disables dropout.
+    ### print('EVALUATION', flush=True)
     model.eval()
     total_loss = 0
     data_len = data_source.size(1)
@@ -109,6 +114,7 @@ def evaluate(model, corpus, data_source, criterion, batch_size, num_steps):
         cost = criterion(output, targets).data
         total_loss += cost
         hidden = repackage_hidden(hidden)
+    ### print('total eval loss', total_loss, flush=True)
     return total_loss[0] / data_len
 
 
@@ -191,6 +197,7 @@ def main():
                             epoch, (time.time() - epoch_start_time),
                             val_loss, math.exp(val_loss)))
             logger.info('-' * 89)
+            ### sys.exit()
             # Save the model if the validation loss is the best we've seen so far.
             # if not best_val_loss or val_loss < best_val_loss:
             #     with open(args.save, 'wb') as f:
