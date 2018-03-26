@@ -146,7 +146,7 @@ class ZarembaLstmCell(LstmCell):
         return h_t, c_t
 
 
-class MoonLstm(LstmCell):
+class MoonLstmCell(LstmCell):
     """
     Following Moon et al. (2015), dropout (with a per-sequence mask) is applied
     on c_t. Note: this sucks.
@@ -154,7 +154,7 @@ class MoonLstm(LstmCell):
     def create_dropouts(self):
         return [StatefulDropout(self.dropout)]
 
-    def output_dropout(self):
+    def _create_output_dropout(self):
         """
         Returns the output :class:`Dropout` object handled by the Lstm class.
         """
@@ -177,7 +177,7 @@ class MoonLstm(LstmCell):
         return h_t, c_t
 
 
-class TiedGalLstm(LstmCell):
+class TiedGalLstmCell(LstmCell):
     """
     Following Gal and Ghahramani (2016), per-sequence dropout is applied on
     both the input and h_t. Also known as VD-LSTM. With tied gates.
@@ -186,7 +186,7 @@ class TiedGalLstm(LstmCell):
         return [StatefulDropout(self.dropout)
                 for _ in range(2)]
 
-    def output_dropout(self):
+    def _create_output_dropout(self):
         """
         Returns the output :class:`Dropout` object handled by the Lstm class.
         """
@@ -209,7 +209,7 @@ class TiedGalLstm(LstmCell):
         return h_t, c_t
 
 
-class UntiedGalLstm(LstmCell):
+class UntiedGalLstmCell(LstmCell):
     """
     Following Gal and Ghahramani (2016), per-sequence dropout is applied on
     both the input and h_t. Also known as VD-LSTM. With untied weights.
@@ -218,7 +218,7 @@ class UntiedGalLstm(LstmCell):
         return [StatefulDropout(self.dropout)
                 for _ in range(8)]
 
-    def output_dropout(self):
+    def _create_output_dropout(self):
         """
         Returns the output :class:`Dropout` object handled by the Lstm class.
         """
@@ -246,16 +246,16 @@ class UntiedGalLstm(LstmCell):
         return h_t, c_t
 
 
-class SemeniutaLstm(LstmCell):
+class SemeniutaLstmCell(LstmCell):
     """Following Semeniuta et al. (2016), dropout is applied on g_t."""
     def __init__(self, input_size, hidden_size, dropout=0, per_sequence=False):
         self.per_sequence = per_sequence
-        super(SemeniutaLstm, self).__init__(input_size, hidden_size, dropout)
+        super(SemeniutaLstmCell, self).__init__(input_size, hidden_size, dropout)
 
     def create_dropouts(self):
-        return [self.output_dropout()]
+        return [self._create_output_dropout()]
 
-    def output_dropout(self):
+    def _create_output_dropout(self):
         """
         Returns the output :class:`Dropout` object handled by the Lstm class.
         """
@@ -299,7 +299,7 @@ class Lstm(nn.Module):
         self.num_layers = num_layers
 
         self.layers = [cell_class(input_size if not l else hidden_size,
-                                  hidden_size, dropout=dropout, *args, **kwargs)
+                                  hidden_size, dropout, *args, **kwargs)
                        for l in range(num_layers)]
         self.dropout = self.layers[-1].output_dropout()
         for l, layer in enumerate(self.layers):
