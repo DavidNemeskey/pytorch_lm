@@ -32,6 +32,8 @@ class LstmCell(nn.Module):
         self.hidden_size = hidden_size
         self.dropout = dropout
         self.do = self.create_dropouts()
+        for i, do in enumerate(self.do):
+            self.add_module('do{}'.format(i), do)
 
         self.w_i = nn.Parameter(torch.Tensor(input_size, 4 * hidden_size))
         self.w_h = nn.Parameter(torch.Tensor(hidden_size, 4 * hidden_size))
