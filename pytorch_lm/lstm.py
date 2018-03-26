@@ -52,6 +52,17 @@ class LstmCell(nn.Module):
     def output_dropout(self):
         """
         Returns the output :class:`Dropout` object handled by the Lstm class.
+        It also registers the object as a child module.
+        """
+        do = self.get_output_dropout()
+        self.add_module('do_outer', do)
+        return do
+
+    def _create_output_dropout(self):
+        """
+        Creates (or reuses from self.do) the output :class:`Dropout` object
+        handled by the Lstm class. This function should not be called from the
+        outside.
         """
         raise NotImplementedError()
 
@@ -111,9 +122,8 @@ class ZarembaLstmCell(LstmCell):
     """Following Zaremba et al. (2014), dropout is applied on the input tensor."""
     def create_dropouts(self):
         return [StatelessDropout(self.dropout)]
-        # return [FunctionalDropout(self.dropout)]
 
-    def output_dropout(self):
+    def _create_output_dropout(self):
         """
         Returns the output :class:`Dropout` object handled by the Lstm class.
         """
