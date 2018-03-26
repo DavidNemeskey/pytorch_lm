@@ -54,7 +54,7 @@ class LstmCell(nn.Module):
         Returns the output :class:`Dropout` object handled by the Lstm class.
         It also registers the object as a child module.
         """
-        do = self.get_output_dropout()
+        do = self._create_output_dropout()
         self.add_module('do_outer', do)
         return do
 
