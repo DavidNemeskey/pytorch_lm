@@ -8,6 +8,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 from pytorch_lm.dropout import StatelessDropout, StatefulDropout
+from pytorch_lm.utils.config import create_object
 
 
 class LstmCell(nn.Module):
@@ -292,15 +293,20 @@ class Lstm(nn.Module):
     the final output).
     """
     def __init__(self, input_size, hidden_size, num_layers, dropout=0,
-                 cell_class=ZarembaLstmCell, *args, **kwargs):
+                 cell_data=None):
         super(Lstm, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
 
-        self.layers = [cell_class(input_size if not l else hidden_size,
-                                  hidden_size, dropout, *args, **kwargs)
+        if not cell_data:
+            cell_data = {'class': ZarembaLstmCell, 'args': [], 'kwargs': {}}
+
+        self.layers = [create_object(cell_data, base_module='pytorch_lm.lstm')
                        for l in range(num_layers)]
+        # self.layers = [cell_class(input_size if not l else hidden_size,
+        #                           hidden_size, dropout, *args, **kwargs)
+        #                for l in range(num_layers)]
         self.dropout = self.layers[-1].output_dropout()
         for l, layer in enumerate(self.layers):
             self.add_module('Layer_{}'.format(l), layer)

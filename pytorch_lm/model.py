@@ -17,8 +17,18 @@ class LMModel(nn.Module):
 
 
 class GenericLstmModel(LMModel):
-    """Implements a generic embedding - LSTM - softmax LM."""
-    def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5):
+    """
+    Implements a generic embedding - LSTM - softmax LM.
+
+    The only interesting parameter here is cell_data, which is a dictionary:
+    {
+      "class": the LstmCell subclass
+      "args": its arguments (apart from input & hidden size and dropout prob.)
+      "kwargs": its keyword arguments (likewise)
+    }
+    """
+    def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
+                 cell_data=None):
         super(GenericLstmModel, self).__init__()
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
@@ -26,7 +36,8 @@ class GenericLstmModel(LMModel):
         self.dropout = dropout
 
         self.encoder = nn.Embedding(vocab_size, hidden_size)
-        self.rnn = Lstm(hidden_size, hidden_size, num_layers, dropout)
+        self.rnn = Lstm(hidden_size, hidden_size, num_layers, dropout,
+                        cell_data)
         self.decoder = nn.Linear(hidden_size, vocab_size)
 
     def forward(self, input, hidden):
