@@ -91,7 +91,7 @@ class StatefulDropout(Dropout):
     def forward(self, x):
         if self.training and self.p:
             if self.noise is None:
-                self.make_noise(x)
+                self.noise = self.make_noise(x)
             return torch.mul(x, self.noise)  # expand_as?
         else:
             return x
