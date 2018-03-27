@@ -1,6 +1,8 @@
+import torch
 import torch.nn as nn
 
 from pytorch_lm.lstm import Lstm
+from pytorch_lm.utils.config import create_object
 
 
 class LMModel(nn.Module):
@@ -28,12 +30,19 @@ class GenericLstmModel(LMModel):
     }
     """
     def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
-                 cell_data=None):
+                 cell_data=None, embedding_dropout=None):
         super(GenericLstmModel, self).__init__()
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = dropout
+
+        # Embedding dropout
+        if embedding_dropout:
+            self.emb_do = create_object(
+                embedding_dropout, base_module='pytorch_lm.dropout')
+        else:
+            self.emb_do = None
 
         self.encoder = nn.Embedding(vocab_size, hidden_size)
         self.rnn = Lstm(hidden_size, hidden_size, num_layers, dropout,
@@ -42,6 +51,13 @@ class GenericLstmModel(LMModel):
 
     def forward(self, input, hidden):
         emb = self.encoder(input)
+
+        # Embedding dropout
+        if self.emb_do:
+            self.emb_do.reset_noise()
+            mask = self.emb_do(torch.ones_like(input).type_as(emb))
+            emb = mask.unsqueeze(2).expand_as(emb)
+
         # self.rnn.flatten_parameters()
         output, hidden = self.rnn(emb, hidden)
         decoded = self.decoder(
@@ -80,9 +96,12 @@ class PressAndWolfModel(GenericLstmModel):
     paper.
     """
     def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
+                 cell_data=None, embedding_dropout=None,
                  projection_lambda=0.15, weight_tying=True):
         super(PressAndWolfModel, self).__init__(
-            vocab_size, hidden_size, num_layers, dropout)
+            vocab_size, hidden_size, num_layers, dropout,
+            cell_data, embedding_dropout)
+
         if weight_tying:
             # Linear.weight is transposed, so this will just work
             self.decoder.weight = self.encoder.weight
