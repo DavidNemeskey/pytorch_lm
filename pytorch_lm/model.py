@@ -56,7 +56,7 @@ class GenericLstmModel(LMModel):
         if self.emb_do:
             self.emb_do.reset_noise()
             mask = self.emb_do(torch.ones_like(input).type_as(emb))
-            emb = mask.unsqueeze(2).expand_as(emb)
+            emb = emb * mask.unsqueeze(2).expand_as(emb)
 
         # self.rnn.flatten_parameters()
         output, hidden = self.rnn(emb, hidden)
