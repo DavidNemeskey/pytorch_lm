@@ -230,8 +230,8 @@ class UntiedGalLstmCell(LstmCell):
 
         w_ii, w_if, w_ig, w_io = self.w_i.chunk(4, 1)
         w_hi, w_hf, w_hg, w_ho = self.w_h.chunk(4, 1)
-        b_ii, b_if, b_ig, b_io = self.b_i.chunk(4, 1)
-        b_hi, b_hf, b_hg, b_ho = self.b_h.chunk(4, 1)
+        b_ii, b_if, b_ig, b_io = self.b_i.chunk(4, 0)
+        b_hi, b_hf, b_hg, b_ho = self.b_h.chunk(4, 0)
 
         i = torch.sigmoid(self.do[0](input).matmul(w_ii) +
                           self.do[1](h_t).matmul(w_hi) + b_ii + b_hi)
