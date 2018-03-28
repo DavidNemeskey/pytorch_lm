@@ -249,26 +249,30 @@ class UntiedGalLstmCell(LstmCell):
 
 class SemeniutaLstmCell(LstmCell):
     """Following Semeniuta et al. (2016), dropout is applied on g_t."""
-    def __init__(self, input_size, hidden_size, dropout=0, per_sequence=False):
+    def __init__(self, input_size, hidden_size, dropout=0, per_sequence=False,
+                 input_do=0, output_do=0):
         self.per_sequence = per_sequence
+        self.input_do = input_do
+        self.output_do = output_do
         super(SemeniutaLstmCell, self).__init__(input_size, hidden_size, dropout)
 
     def create_dropouts(self):
-        return [self._create_output_dropout()]
+        if self.per_sequence:
+            update_do = StatefulDropout(self.dropout)
+        else:
+            update_do = StatelessDropout(self.dropout)
+        return [update_do, StatelessDropout(self.input_do)]
 
     def _create_output_dropout(self):
         """
         Returns the output :class:`Dropout` object handled by the Lstm class.
         """
-        if self.per_sequence:
-            return StatefulDropout(self.dropout)
-        else:
-            return StatelessDropout(self.dropout)
+        return StatelessDropout(self.output_do)
 
     def forward(self, input, hidden):
         h_t, c_t = hidden
 
-        ifgo = input.matmul(self.w_i) + h_t.matmul(self.w_h)
+        ifgo = self.do[1](input).matmul(self.w_i) + h_t.matmul(self.w_h)
         ifgo += self.b_i + self.b_h
 
         i, f, g, o = ifgo.chunk(4, 1)
@@ -276,7 +280,7 @@ class SemeniutaLstmCell(LstmCell):
         f = torch.sigmoid(f)
         g = torch.tanh(g)
         o = torch.sigmoid(o)
-        c_t = f * c_t + i * self.do(g)
+        c_t = f * c_t + i * self.do[0](g)
         h_t = o * torch.tanh(c_t)
 
         return h_t, c_t

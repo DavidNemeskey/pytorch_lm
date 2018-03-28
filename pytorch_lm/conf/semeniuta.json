@@ -1,0 +1,37 @@
+{
+    "model": {
+        "class": "GenericLstmModel",
+        "kwargs": {
+            "hidden_size": 256,
+            "num_layers": 1,
+            "dropout": 0.35,
+            "cell_data": {
+                "class": "SemeniutaLstmCell",
+				"kwargs": {
+					"per_sequence": false,
+					"input_do": 0.2,
+					"output_do": 0.5
+				}
+            }
+        }
+    },
+    "optimizer": {
+        "class": "torch.optim.SGD",
+        "args": [1.0]
+    },
+    "initializer": {
+        "function": "uniform",
+        "kwargs": {"a": -0.05, "b": 0.05}
+    },
+    "lr_scheduler": {
+        "class": "ZarembaScheduleLR",
+        "kwargs": {
+            "lr_decay": 0.83,
+            "decay_delay": 6
+        }
+    },
+    "num_epochs": 39,
+    "batch_size": 32,
+    "num_steps": 35,
+    "grad_clip": 10
+}
