@@ -24,10 +24,11 @@
         "kwargs": {"a": -0.05, "b": 0.05}
     },
     "lr_scheduler": {
-        "class": "ZarembaScheduleLR",
+        "class": "torch.optim.lr_scheduler.ReduceLROnPlateau",
         "kwargs": {
-            "lr_decay": 0.83,
-            "decay_delay": 6
+            "mode": "min",
+            "factor": 0.6666666666,
+	    "patience": 1
         }
     },
     "num_epochs": 39,
