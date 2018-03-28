@@ -5,7 +5,7 @@
 
 from bisect import bisect_right
 
-from torch.optim.lr_scheduler import _LRScheduler, ExponentialLR
+from torch.optim.lr_scheduler import _LRScheduler, ExponentialLR, ReduceLROnPlateau
 
 
 class ConstantLR(_LRScheduler):
@@ -58,6 +58,7 @@ class MultiScheduleLR(_LRScheduler):
         scheduler = self.schedulers[milestone]
         return scheduler.get_lr()
 
+
 class ZarembaScheduleLR(MultiScheduleLR):
     """The Zaremba schedule."""
     def __init__(self, optimizer, lr_decay, decay_delay, last_epoch=-1):
@@ -66,3 +67,15 @@ class ZarembaScheduleLR(MultiScheduleLR):
             {0: ConstantLR(optimizer),
              decay_delay: ExponentialLR(optimizer, lr_decay, last_epoch=0)}
         )
+
+
+def lr_step_at_epoch_start(lr_scheduler):
+    """
+    Tells if the step() method should be invoked at the beginning of the
+    epoch. True for all LR schedulers, with the only exception being
+    ReduceLROnPlateau.
+    """
+    if isinstance(lr_scheduler, ReduceLROnPlateau):
+        return False
+    else:
+        return True

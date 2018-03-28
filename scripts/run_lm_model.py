@@ -12,6 +12,7 @@ from torch.autograd import Variable
 
 from pytorch_lm.data import Corpus, batchify, get_batch
 from pytorch_lm.loss import SequenceLoss
+from pytorch_lm.lr_schedule import lr_step_at_epoch_start
 from pytorch_lm.utils.config import read_config
 from pytorch_lm.utils.lang import getall
 from pytorch_lm.utils.logging import setup_stream_logger
@@ -49,14 +50,13 @@ def parse_arguments():
 
 
 def train(model, corpus, config, train_data, criterion, epoch, log_interval):
-    optimizer, lr_schedule, batch_size, num_steps, grad_clip = getall(
+    optimizer, lr_scheduler, batch_size, num_steps, grad_clip = getall(
         config, ['optimizer', 'lr_scheduler',
                  'batch_size', 'num_steps', 'grad_clip'])
     # Turn on training mode which enables dropout.
     ### print('TRAIN', flush=True)
     model.train()
-    lr_schedule.step()
-    lr = lr_schedule.get_lr()[0]
+    lr = lr_scheduler.get_lr()[0]
     total_loss = 0
     start_time = time.time()
     data_len = train_data.size(1)
@@ -162,7 +162,7 @@ def main():
     valid_data = batchify(corpus.valid, validd['batch_size'], args.cuda)
     test_data = batchify(corpus.test, testd['batch_size'], args.cuda)
 
-    model, optimizer, initializer, lr_schedule = getall(
+    model, optimizer, initializer, lr_scheduler = getall(
         traind, ['model', 'optimizer', 'initializer', 'lr_scheduler'])
 
     initialize_model(model, initializer)
@@ -186,11 +186,15 @@ def main():
     try:
         for epoch in range(1, traind['num_epochs'] + 1):
             epoch_start_time = time.time()
+            if lr_step_at_epoch_start(lr_scheduler):
+                lr_scheduler.step()
             train(model, corpus, traind, train_data, criterion,
                   epoch, args.log_interval)
             val_loss = evaluate(model, corpus, valid_data,
                                 criterion, validd['batch_size'],
                                 validd['num_steps'])
+            if not lr_step_at_epoch_start(lr_scheduler):
+                lr_scheduler.step(val_loss)
             logger.info('-' * 89)
             logger.info('| end of epoch {:3d} | time: {:5.2f}s | '
                         'valid loss {:5.2f} | valid ppl {:8.2f}'.format(
