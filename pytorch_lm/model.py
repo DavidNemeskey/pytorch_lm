@@ -72,12 +72,14 @@ class SmallLstmModel(GenericLstmModel):
 
 class MediumLstmModel(GenericLstmModel):
     def __init__(self, vocab_size):
-        super(MediumLstmModel, self).__init__(vocab_size, 650, 2, 0.5)
+        super(MediumLstmModel, self).__init__(vocab_size, 650, 2, 0.5,
+                                              output_dropout='0.5')
 
 
 class LargeLstmModel(GenericLstmModel):
     def __init__(self, vocab_size):
-        super(LargeLstmModel, self).__init__(vocab_size, 1500, 2, 0.65)
+        super(LargeLstmModel, self).__init__(vocab_size, 1500, 2, 0.65,
+                                             output_dropout='0.65')
 
 
 class PressAndWolfModel(GenericLstmModel):

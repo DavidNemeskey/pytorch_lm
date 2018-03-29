@@ -9,10 +9,10 @@
                 "class": "SemeniutaLstmCell",
 				"kwargs": {
 					"per_sequence": false,
-					"input_do": 0.2,
-					"output_do": 0.5
+					"input_do": 0.2
 				}
-            }
+            },
+			"output_embedding": "0.5"
         }
     },
     "optimizer": {

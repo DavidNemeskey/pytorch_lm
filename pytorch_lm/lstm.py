@@ -50,23 +50,6 @@ class LstmCell(nn.Module):
         """
         raise NotImplementedError()
 
-    def output_dropout(self):
-        """
-        Returns the output :class:`Dropout` object handled by the Lstm class.
-        It also registers the object as a child module.
-        """
-        do = self._create_output_dropout()
-        self.add_module('do_outer', do)
-        return do
-
-    def _create_output_dropout(self):
-        """
-        Creates (or reuses from self.do) the output :class:`Dropout` object
-        handled by the Lstm class. This function should not be called from the
-        outside.
-        """
-        raise NotImplementedError()
-
     def forward(self, input, hidden):
         """Of course, forward must be implemented in subclasses."""
         raise NotImplementedError()
@@ -124,12 +107,6 @@ class ZarembaLstmCell(LstmCell):
     def create_dropouts(self):
         return [StatelessDropout(self.dropout)]
 
-    def _create_output_dropout(self):
-        """
-        Returns the output :class:`Dropout` object handled by the Lstm class.
-        """
-        return self.do[0]
-
     def forward(self, input, hidden):
         h_t, c_t = hidden
 
@@ -154,12 +131,6 @@ class MoonLstmCell(LstmCell):
     """
     def create_dropouts(self):
         return [StatefulDropout(self.dropout)]
-
-    def _create_output_dropout(self):
-        """
-        Returns the output :class:`Dropout` object handled by the Lstm class.
-        """
-        return StatefulDropout(self.dropout)
 
     def forward(self, input, hidden):
         h_t, c_t = hidden
@@ -187,12 +158,6 @@ class TiedGalLstmCell(LstmCell):
         return [StatefulDropout(self.dropout)
                 for _ in range(2)]
 
-    def _create_output_dropout(self):
-        """
-        Returns the output :class:`Dropout` object handled by the Lstm class.
-        """
-        return StatefulDropout(self.dropout)
-
     def forward(self, input, hidden):
         h_t, c_t = hidden
 
@@ -219,12 +184,6 @@ class UntiedGalLstmCell(LstmCell):
         return [StatefulDropout(self.dropout)
                 for _ in range(8)]
 
-    def _create_output_dropout(self):
-        """
-        Returns the output :class:`Dropout` object handled by the Lstm class.
-        """
-        return StatefulDropout(self.dropout)
-
     def forward(self, input, hidden):
         h_t, c_t = hidden
 
@@ -250,10 +209,9 @@ class UntiedGalLstmCell(LstmCell):
 class SemeniutaLstmCell(LstmCell):
     """Following Semeniuta et al. (2016), dropout is applied on g_t."""
     def __init__(self, input_size, hidden_size, dropout=0, per_sequence=False,
-                 input_do=0, output_do=0):
+                 input_do=0):
         self.per_sequence = per_sequence
         self.input_do = input_do
-        self.output_do = output_do
         super(SemeniutaLstmCell, self).__init__(input_size, hidden_size, dropout)
 
     def create_dropouts(self):
@@ -262,12 +220,6 @@ class SemeniutaLstmCell(LstmCell):
         else:
             update_do = StatelessDropout(self.dropout)
         return [update_do, StatelessDropout(self.input_do)]
-
-    def _create_output_dropout(self):
-        """
-        Returns the output :class:`Dropout` object handled by the Lstm class.
-        """
-        return StatelessDropout(self.output_do)
 
     def forward(self, input, hidden):
         h_t, c_t = hidden
