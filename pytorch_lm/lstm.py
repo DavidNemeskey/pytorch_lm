@@ -256,7 +256,7 @@ class Lstm(nn.Module):
         self.num_layers = num_layers
 
         if not cell_data:
-            cell_data = {'class': ZarembaLstmCell, 'args': [], 'kwargs': {}}
+            cell_data = {'class': 'ZarembaLstmCell', 'args': [], 'kwargs': {}}
 
         self.layers = [create_object(cell_data, base_module='pytorch_lm.lstm',
                                      args=[input_size if not l else hidden_size,
