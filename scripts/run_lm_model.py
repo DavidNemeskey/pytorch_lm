@@ -50,13 +50,14 @@ def parse_arguments():
 
 
 def train(model, corpus, config, train_data, criterion, epoch, log_interval):
-    optimizer, lr_scheduler, batch_size, num_steps, grad_clip = getall(
-        config, ['optimizer', 'lr_scheduler',
-                 'batch_size', 'num_steps', 'grad_clip'])
+    optimizer, batch_size, num_steps, grad_clip = getall(
+        config, ['optimizer', 'batch_size', 'num_steps', 'grad_clip'])
     # Turn on training mode which enables dropout.
     ### print('TRAIN', flush=True)
     model.train()
-    lr = lr_scheduler.get_lr()[0]
+    
+    # lr = lr_scheduler.get_lr()[0]
+    lr = optimizer.param_groups[0]['lr']
     total_loss = 0
     start_time = time.time()
     data_len = train_data.size(1)
