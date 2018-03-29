@@ -1,0 +1,33 @@
+{
+    "model": {
+        "class": "GenericLstmModel",
+        "kwargs": {
+            "hidden_size": 256,
+            "num_layers": 1,
+            "dropout": 0.25,
+            "cell_data": {
+                "class": "MoonLstmCell"
+            }
+        }
+    },
+    "optimizer": {
+        "class": "torch.optim.SGD",
+        "args": [1.0]
+    },
+    "initializer": {
+        "function": "uniform",
+        "kwargs": {"a": -0.05, "b": 0.05}
+    },
+    "lr_scheduler": {
+        "class": "torch.optim.lr_scheduler.ReduceLROnPlateau",
+        "kwargs": {
+            "mode": "min",
+            "factor": 0.6666666666,
+	    "patience": 1
+        }
+    },
+    "num_epochs": 100,
+    "batch_size": 32,
+    "num_steps": 35,
+    "grad_clip": 10
+}
