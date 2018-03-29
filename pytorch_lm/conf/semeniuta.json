@@ -4,7 +4,7 @@
         "kwargs": {
             "hidden_size": 256,
             "num_layers": 1,
-            "dropout": 0.35,
+            "dropout": 0.25,
             "cell_data": {
                 "class": "SemeniutaLstmCell",
 				"kwargs": {
@@ -31,7 +31,7 @@
 	    "patience": 1
         }
     },
-    "num_epochs": 39,
+    "num_epochs": 100,
     "batch_size": 32,
     "num_steps": 35,
     "grad_clip": 10
