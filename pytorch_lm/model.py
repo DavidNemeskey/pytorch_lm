@@ -56,6 +56,7 @@ class GenericLstmModel(LMModel):
 
         # self.rnn.flatten_parameters()
         output, hidden = self.rnn(emb, hidden)
+        self.out_do.reset_noise()
         output = self.out_do(output)
         decoded = self.decoder(
             output.view(output.size(0) * output.size(1), output.size(2)))
