@@ -38,7 +38,7 @@ class GenericLstmModel(LMModel):
         self.dropout = dropout
 
         # Embedding & output dropouts
-        self.emb_do = create_dropout(embedding_dropout)
+        self.emb_do = create_dropout(embedding_dropout, True)
         self.out_do = create_dropout(output_dropout)
 
         self.encoder = nn.Embedding(vocab_size, hidden_size)
@@ -50,9 +50,10 @@ class GenericLstmModel(LMModel):
         emb = self.encoder(input)
 
         # Embedding dropout
-        self.emb_do.reset_noise()
-        mask = self.emb_do(torch.ones_like(input).type_as(emb))
-        emb = emb * mask.unsqueeze(2).expand_as(emb)
+        if self.emb_do:
+            self.emb_do.reset_noise()
+            mask = self.emb_do(torch.ones_like(input).type_as(emb))
+            emb = emb * mask.unsqueeze(2).expand_as(emb)
 
         # self.rnn.flatten_parameters()
         output, hidden = self.rnn(emb, hidden)

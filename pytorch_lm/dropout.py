@@ -97,7 +97,7 @@ class NoDropout(Dropout):
         return x
 
 
-def create_dropout(do_str):
+def create_dropout(do_str, default_none=False):
     """
     Creates a dropout object from the DO string. The format is "<p>(s)", where
     <p> is the drop (not keep!) probability, and the s suffix is optional and
@@ -112,4 +112,4 @@ def create_dropout(do_str):
         p = float(do_str)
         if p > 0:
             return cls(p)
-    return NoDropout()
+    return NoDropout() if not default_none else None
