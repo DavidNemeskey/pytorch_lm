@@ -8,10 +8,8 @@
             "cell_data": {
                 "class": "TiedGalLstmCell"
             },
-            "embedding_dropout": {
-                "class": "StatefulDropout",
-                "args": [0.2]
-            }
+            "embedding_dropout": "0.2s",
+			"output_embedding": "0.35s"
         }
     },
     "optimizer": {

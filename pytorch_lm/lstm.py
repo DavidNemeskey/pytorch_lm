@@ -310,10 +310,6 @@ class Lstm(nn.Module):
                                      args=[input_size if not l else hidden_size,
                                            hidden_size, dropout])
                        for l in range(num_layers)]
-        # self.layers = [cell_class(input_size if not l else hidden_size,
-        #                           hidden_size, dropout, *args, **kwargs)
-        #                for l in range(num_layers)]
-        self.dropout = self.layers[-1].output_dropout()
         for l, layer in enumerate(self.layers):
             self.add_module('Layer_{}'.format(l), layer)
 
@@ -324,7 +320,6 @@ class Lstm(nn.Module):
         for l in self.layers:
             for do in l.do:
                 do.reset_noise()
-        self.dropout.reset_noise()
 
         # chunk() cuts batch_size x 1 x input_size chunks from input
         for input_t in input.chunk(input.size(1), dim=1):
@@ -335,7 +330,6 @@ class Lstm(nn.Module):
                 hiddens[l] = h_t, c_t
             outputs.append(values)
         outputs = torch.stack(outputs, 1)
-        outputs = self.dropout(outputs)
         return outputs, hiddens
 
     def init_hidden(self, batch_size):

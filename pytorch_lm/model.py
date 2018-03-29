@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from pytorch_lm.lstm import Lstm
-from pytorch_lm.utils.config import create_object
+from pytorch_lm.dropout import create_dropout
 
 
 class LMModel(nn.Module):
@@ -30,19 +30,16 @@ class GenericLstmModel(LMModel):
     }
     """
     def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
-                 cell_data=None, embedding_dropout=None):
+                 cell_data=None, embedding_dropout=None, output_dropout=None):
         super(GenericLstmModel, self).__init__()
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = dropout
 
-        # Embedding dropout
-        if embedding_dropout:
-            self.emb_do = create_object(
-                embedding_dropout, base_module='pytorch_lm.dropout')
-        else:
-            self.emb_do = None
+        # Embedding & output dropouts
+        self.emb_do = create_dropout(embedding_dropout)
+        self.out_do = create_dropout(output_dropout)
 
         self.encoder = nn.Embedding(vocab_size, hidden_size)
         self.rnn = Lstm(hidden_size, hidden_size, num_layers, dropout,
@@ -53,13 +50,13 @@ class GenericLstmModel(LMModel):
         emb = self.encoder(input)
 
         # Embedding dropout
-        if self.emb_do:
-            self.emb_do.reset_noise()
-            mask = self.emb_do(torch.ones_like(input).type_as(emb))
-            emb = emb * mask.unsqueeze(2).expand_as(emb)
+        self.emb_do.reset_noise()
+        mask = self.emb_do(torch.ones_like(input).type_as(emb))
+        emb = emb * mask.unsqueeze(2).expand_as(emb)
 
         # self.rnn.flatten_parameters()
         output, hidden = self.rnn(emb, hidden)
+        output = self.out_do(output)
         decoded = self.decoder(
             output.view(output.size(0) * output.size(1), output.size(2)))
         return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden

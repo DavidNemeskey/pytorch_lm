@@ -37,9 +37,11 @@ class Dropout(nn.Module):
         return noise
 
     def reset_noise(self):
-        """Resets the noise mask, at e.g. the beginning of a sequence."""
-        raise NotImplementedError('reset_noise not implemented in {}'.format(
-            self.__class__.__name__))
+        """
+        Resets the noise mask, at e.g. the beginning of a sequence. The default
+        implementation does nothing.
+        """
+        pass
 
     def forward(self, x):
         raise NotImplementedError('forward not implemented in {}'.format(
@@ -48,10 +50,6 @@ class Dropout(nn.Module):
 
 class StatelessDropout(Dropout):
     """The regular stateless dropout."""
-    def reset_noise(self):
-        """A no-op."""
-        pass
-
     def forward(self, x):
         if self.training and self.p:
             output = torch.mul(x, self.make_noise(x))  # expand_as?
@@ -62,10 +60,6 @@ class StatelessDropout(Dropout):
 
 class FunctionalDropout(Dropout):
     """The regular stateless using the stock dropout function."""
-    def reset_noise(self):
-        """A no-op."""
-        pass
-
     def forward(self, x):
         if self.training and self.p:
             output = F.dropout(x, self.p, training=True)
@@ -95,3 +89,27 @@ class StatefulDropout(Dropout):
             return torch.mul(x, self.noise)  # expand_as?
         else:
             return x
+
+
+class NoDropout(Dropout):
+    """Does nothing; i.e. no dropout."""
+    def forward(self, x):
+        return x
+
+
+def create_dropout(do_str):
+    """
+    Creates a dropout object from the DO string. The format is "<p>(s)", where
+    <p> is the drop (not keep!) probability, and the s suffix is optional and
+    marks per-sequence (stateful) dropout.
+    """
+    if do_str:
+        if do_str.endswith('s'):
+            cls = StatefulDropout
+            do_str = do_str[:-1]
+        else:
+            cls = StatelessDropout
+        p = float(do_str)
+        if p > 0:
+            return cls(p)
+   return NoDropout()
