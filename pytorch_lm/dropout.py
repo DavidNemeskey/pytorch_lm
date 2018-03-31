@@ -97,13 +97,15 @@ class NoDropout(Dropout):
         return x
 
 
-def create_dropout(do_str, default_none=False):
+def create_dropout(do_value, default_none=False):
     """
-    Creates a dropout object from the DO string. The format is "<p>(s)", where
+    Creates a dropout object from a DO string (or any object whose __str__
+    method returns a string of the right format). The format is "<p>(s)", where
     <p> is the drop (not keep!) probability, and the s suffix is optional and
     marks per-sequence (stateful) dropout.
     """
     if do_str:
+        do_str = str(do_str)
         if do_str.endswith('s'):
             cls = StatefulDropout
             do_str = do_str[:-1]

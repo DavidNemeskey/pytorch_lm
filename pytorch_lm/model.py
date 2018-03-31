@@ -20,14 +20,19 @@ class LMModel(nn.Module):
 
 class GenericLstmModel(LMModel):
     """
-    Implements a generic embedding - LSTM - softmax LM.
+    Implements a generic embedding - LSTM - softmax LM. The first few
+    parameters are self-explanatory. The rest are:
 
-    The only interesting parameter here is cell_data, which is a dictionary:
+    - dropout: the dropout probability between LSTM layers (float)
+    - cell_data: a dictionary:
     {
       "class": the LstmCell subclass
       "args": its arguments (apart from input & hidden size and dropout prob.)
       "kwargs": its keyword arguments (likewise)
     }
+    - embedding_dropout: per-row dropout on the embedding matrix
+      (a dropout string)
+    - output_dropout: the dropout applied on the RNN output.
     """
     def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
                  cell_data=None, embedding_dropout=None, output_dropout=None):
@@ -151,9 +156,11 @@ class SmallPressAndWolfModel(PressAndWolfModel):
 
 class MediumPressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
-        super(MediumPressAndWolfModel, self).__init__(vocab_size, 650, 2, 0.5)
+        super(MediumPressAndWolfModel, self).__init__(
+            vocab_size, 650, 2, 0.5, output_dropout=0.5)
 
 
 class LargePressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
-        super(LargePressAndWolfModel, self).__init__(vocab_size, 1500, 2, 0.65)
+        super(LargePressAndWolfModel, self).__init__(
+            vocab_size, 1500, 2, 0.65, output_dropout=0.65)
