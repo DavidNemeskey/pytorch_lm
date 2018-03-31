@@ -46,7 +46,17 @@ class GenericLstmModel(LMModel):
                         cell_data)
         self.decoder = nn.Linear(hidden_size, vocab_size)
 
+    # ----- OK, I am not sure this is the best one can come up with, but -----
+    # ----- I really want to keep PressAndWolfModel as a separate class
+
     def forward(self, input, hidden):
+        emb = self._encode(input)
+        output, hidden = self._rnn(emb, hidden)
+        decoded = self._decode(output)
+        return decoded, hidden
+
+    def _encode(self, input):
+        """Encodes the input with the encoder."""
         emb = self.encoder(input)
 
         # Embedding dropout
@@ -54,14 +64,23 @@ class GenericLstmModel(LMModel):
             self.emb_do.reset_noise()
             mask = self.emb_do(torch.ones_like(input).type_as(emb))
             emb = emb * mask.unsqueeze(2).expand_as(emb)
+        return emb
 
+    def _rnn(self, emb, hidden):
+        """Runs the RNN on the embedded input."""
         # self.rnn.flatten_parameters()
         output, hidden = self.rnn(emb, hidden)
         self.out_do.reset_noise()
         output = self.out_do(output)
+        return output, hidden
+
+    def _decode(self, output):
+        """Runs softmax (etc.) on the output of the (last) RNN layer."""
         decoded = self.decoder(
             output.view(output.size(0) * output.size(1), output.size(2)))
-        return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden
+        return decoded.view(output.size(0), output.size(1), decoded.size(1))
+
+    # ----- End of forward() ------
 
     def init_hidden(self, batch_size):
         return self.rnn.init_hidden(batch_size)
@@ -97,7 +116,7 @@ class PressAndWolfModel(GenericLstmModel):
     paper.
     """
     def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
-                 cell_data=None, embedding_dropout=None,
+                 cell_data=None, embedding_dropout=None, output_dropout=None,
                  projection_lambda=0.15, weight_tying=True):
         super(PressAndWolfModel, self).__init__(
             vocab_size, hidden_size, num_layers, dropout,
@@ -112,15 +131,10 @@ class PressAndWolfModel(GenericLstmModel):
         else:
             self.projection = None
 
-    def forward(self, input, hidden):
-        emb = self.encoder(input)
-        # self.rnn.flatten_parameters()
-        output, hidden = self.rnn(emb, hidden)
-        projected = self.projection(output) if self.projection else output
-        decoded = self.decoder(
-            projected.view(projected.size(0) * projected.size(1),
-                           projected.size(2)))
-        return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden
+    def _rnn(self, emb, hidden):
+        """Also performs the projection."""
+        output = super(PressAndWolfModel, self)._rnn(emb, hidden)
+        return self.projection(output) if self.projection else output
 
     def loss_regularizer(self):
         """The regularizing term (if any) that is added to the loss."""
