@@ -9,7 +9,7 @@
                 "class": "TiedGalLstmCell"
             },
             "embedding_dropout": "0.2s",
-			"output_dropout": "0.35s"
+            "output_dropout": "0.35s"
         }
     },
     "optimizer": {
