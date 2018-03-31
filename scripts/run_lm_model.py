@@ -91,7 +91,8 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
         ### print('total loss', total_loss, flush=True)
 
         if batch % log_interval == 0 and batch > 0:
-            cur_loss = total_loss[0] / log_interval
+            # cur_loss = total_loss[0] / log_interval
+            cur_loss = total_loss.item() / log_interval
             elapsed = time.time() - start_time
             logger.info('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | '
                         'ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(
@@ -116,7 +117,8 @@ def evaluate(model, corpus, data_source, criterion, batch_size, num_steps):
         total_loss += cost
         hidden = repackage_hidden(hidden)
     ### print('total eval loss', total_loss, flush=True)
-    return total_loss[0] / data_len
+    # return total_loss[0] / data_len
+    return total_loss.item() / data_len
 
 
 def repackage_hidden(h):
