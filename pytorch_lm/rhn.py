@@ -32,8 +32,6 @@ class Rhn(nn.Module):
             for l, p in enumerate(lst, 1):
                 self.add_module('Rb_{}_{}'.format(letter, l), p)
 
-        self.reset_parameters()
-
     def forward(self, input, s):
         outputs = []
 
@@ -67,11 +65,6 @@ class Rhn(nn.Module):
             print('OUTPUT')
             outputs.append(s)
         return torch.stack(outputs, 1), s
-
-    def reset_parameters(self, initrange=0.1):
-        """Initializes the parameters uniformly to between -/+ initrange."""
-        for weight in self.parameters():
-            weight.data.uniform_(-initrange, initrange)
 
     def init_hidden(self, batch_size):
         """
