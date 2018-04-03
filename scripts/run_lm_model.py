@@ -132,8 +132,6 @@ def initialize_model(model, initializer):
     """Recursively initializes all parameters of the model."""
     for p in model.parameters():
         initializer(p.data)
-    for m in model.modules():
-        initialize_model(m, initializer)
 
 
 def main():
