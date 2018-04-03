@@ -35,34 +35,34 @@ class Rhn(nn.Module):
     def forward(self, input, s):
         outputs = []
 
-        print('INPUT', input, 'S-1', s)
+        # print('INPUT', input, 'S-1', s)
         # chunk() cuts batch_size x 1 x input_size chunks from input
         for input_t in map(torch.squeeze, input.chunk(input.size(1), dim=1)):
-            print('INPUT_T', input_t)
+            # print('INPUT_T', input_t)
             for l in range(self.num_layers):
                 print('L', l)
                 # The input is processed only by the first layer
                 whx = input_t.matmul(self.w_h) if l == 0 else 0
                 wtx = input_t.matmul(self.w_t) if l == 0 else 0
                 wcx = input_t.matmul(self.w_c) if l == 0 else 0
-                print('WHX', whx)
-                print('WTX', wtx)
-                print('WCX', wcx)
+                # print('WHX', whx)
+                # print('WTX', wtx)
+                # print('WCX', wcx)
 
                 # The gates (and the state)
                 h = torch.tanh(whx + self.r_h[l](s))
                 t = torch.sigmoid(wtx + self.r_t[l](s))
                 c = torch.sigmoid(wcx + self.r_c[l](s))
-                print('H', h)
-                print('T', t)
-                print('C', c)
+                # print('H', h)
+                # print('T', t)
+                # print('C', c)
 
                 # The new state
                 s = h * t + s * c
-                print('S', s)
+                # print('S', s)
 
             # Here the output is the current s
-            print('OUTPUT')
+            # print('OUTPUT')
             outputs.append(s)
         return torch.stack(outputs, 1), s
 
