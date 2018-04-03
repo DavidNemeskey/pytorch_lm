@@ -104,8 +104,8 @@ def create_dropout(do_value, default_none=False):
     <p> is the drop (not keep!) probability, and the s suffix is optional and
     marks per-sequence (stateful) dropout.
     """
-    if do_str:
-        do_str = str(do_str)
+    if do_value:
+        do_str = str(do_value)
         if do_str.endswith('s'):
             cls = StatefulDropout
             do_str = do_str[:-1]
