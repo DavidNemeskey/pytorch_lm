@@ -48,7 +48,7 @@ class GenericRnnModel(LMModel):
 
         self.encoder = nn.Embedding(vocab_size, hidden_size)
         self.rnn = create_object(
-            rnn, base_module='pytorch.rnn',
+            rnn, base_module='pytorch_lm.rnn',
             args=[hidden_size, hidden_size, num_layers, dropout]
         )
         self.decoder = nn.Linear(hidden_size, vocab_size)
@@ -117,7 +117,7 @@ class GenericLstmModel(GenericRnnModel):
                 'cell_data': cell_data
             }
         }
-        super(GenericRnnModel, self).__init__(
+        super(GenericLstmModel, self).__init__(
             vocab_size, hidden_size, num_layers, dropout, rnn_setup,
             embedding_dropout, output_dropout
         )
