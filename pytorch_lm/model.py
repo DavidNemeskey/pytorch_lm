@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 
-from pytorch_lm.lstm import Lstm
 from pytorch_lm.dropout import create_dropout
+from pytorch_lm.utils.config import create_object
 
 
 class LMModel(nn.Module):
@@ -18,15 +18,15 @@ class LMModel(nn.Module):
         return 0
 
 
-class GenericLstmModel(LMModel):
+class GenericRnnModel(LMModel):
     """
-    Implements a generic embedding - LSTM - softmax LM. The first few
+    Implements a generic embedding - RNN - softmax LM. The first few
     parameters are self-explanatory. The rest are:
 
     - dropout: the dropout probability between LSTM layers (float)
-    - cell_data: a dictionary:
+    - rnn: a dictionary:
     {
-      "class": the LstmCell subclass
+      "class": the RNN subclass
       "args": its arguments (apart from input & hidden size and dropout prob.)
       "kwargs": its keyword arguments (likewise)
     }
@@ -35,8 +35,8 @@ class GenericLstmModel(LMModel):
     - output_dropout: the dropout applied on the RNN output.
     """
     def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
-                 cell_data=None, embedding_dropout=None, output_dropout=None):
-        super(GenericLstmModel, self).__init__()
+                 rnn=None, embedding_dropout=None, output_dropout=None):
+        super(GenericRnnModel, self).__init__()
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -47,8 +47,10 @@ class GenericLstmModel(LMModel):
         self.out_do = create_dropout(output_dropout)
 
         self.encoder = nn.Embedding(vocab_size, hidden_size)
-        self.rnn = Lstm(hidden_size, hidden_size, num_layers, dropout,
-                        cell_data)
+        self.rnn = create_object(
+            rnn, base_module='pytorch.rnn',
+            args=[hidden_size, hidden_size, num_layers, dropout]
+        )
         self.decoder = nn.Linear(hidden_size, vocab_size)
 
     # ----- OK, I am not sure this is the best one can come up with, but -----
@@ -91,6 +93,36 @@ class GenericLstmModel(LMModel):
         return self.rnn.init_hidden(batch_size)
 
 
+class GenericLstmModel(GenericRnnModel):
+    """
+    Implements a generic embedding - LSTM - softmax LM. The first few
+    parameters are self-explanatory. The rest are:
+
+    - dropout: the dropout probability between LSTM layers (float)
+    - cell_data: a dictionary:
+    {
+      "class": the LstmCell subclass
+      "args": its arguments (apart from input & hidden size and dropout prob.)
+      "kwargs": its keyword arguments (likewise)
+    }
+    - embedding_dropout: per-row dropout on the embedding matrix
+      (a dropout string)
+    - output_dropout: the dropout applied on the RNN output.
+    """
+    def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
+                 cell_data=None, embedding_dropout=None, output_dropout=None):
+        rnn_setup = {
+            'class': 'Lstm',
+            'kwargs': {
+                'cell_data': cell_data
+            }
+        }
+        super(GenericRnnModel, self).__init__(
+            vocab_size, hidden_size, num_layers, dropout, rnn_setup,
+            embedding_dropout, output_dropout
+        )
+
+
 class SmallLstmModel(GenericLstmModel):
     def __init__(self, vocab_size):
         super(SmallLstmModel, self).__init__(vocab_size, 200, 2, 0)
@@ -108,7 +140,7 @@ class LargeLstmModel(GenericLstmModel):
                                              output_dropout='0.65')
 
 
-class PressAndWolfModel(GenericLstmModel):
+class PressAndWolfModel(GenericRnnModel):
     """
     Optionally tie weights as in:
     "Using the Output Embedding to Improve Language Models" (Press & Wolf 2016)
@@ -121,11 +153,12 @@ class PressAndWolfModel(GenericLstmModel):
     paper.
     """
     def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
-                 cell_data=None, embedding_dropout=None, output_dropout=None,
+                 rnn=None, embedding_dropout=None, output_dropout=None,
                  projection_lambda=0.15, weight_tying=True):
         super(PressAndWolfModel, self).__init__(
             vocab_size, hidden_size, num_layers, dropout,
-            cell_data, embedding_dropout)
+            rnn, embedding_dropout, output_dropout
+        )
 
         if weight_tying:
             # Linear.weight is transposed, so this will just work
