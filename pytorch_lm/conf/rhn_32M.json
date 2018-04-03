@@ -1,0 +1,31 @@
+{
+	"model": {
+		"class": "GenericLstmModel",
+		"kwargs": {
+			"vocab_size": 10000,
+			"hidden_size": 830,
+			"num_layers": 10,
+			"dropout": 0.35,
+			"output_dropout": 0.35 
+		}
+	},
+	"optimizer": {
+		"class": "torch.optim.SGD",
+		"args": [1.0]
+	},
+	"initializer": {
+		"function": "uniform",
+		"kwargs": {"a": -0.05, "b": 0.05}
+	},
+	"lr_scheduler": {
+		"class": "ZarembaScheduleLR",
+		"kwargs": {
+			"lr_decay": 0.97,
+			"decay_delay": 1
+		}
+	},
+	"num_epochs": 39,
+	"batch_size": 20,
+	"num_steps": 35,
+	"grad_clip": 6
+}
