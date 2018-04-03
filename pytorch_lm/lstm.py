@@ -41,8 +41,6 @@ class LstmCell(nn.Module):
         self.b_i = nn.Parameter(torch.Tensor(4 * hidden_size))
         self.b_h = nn.Parameter(torch.Tensor(4 * hidden_size))
 
-        self.reset_parameters()
-
     def create_dropouts(self):
         """
         Creates the ``list`` of :class:`Dropout` objects used by the cell.
@@ -53,11 +51,6 @@ class LstmCell(nn.Module):
     def forward(self, input, hidden):
         """Of course, forward must be implemented in subclasses."""
         raise NotImplementedError()
-
-    def reset_parameters(self, initrange=0.1):
-        """Initializes the parameters uniformly to between -/+ initrange."""
-        for weight in self.parameters():
-            weight.data.uniform_(-initrange, initrange)
 
     def save_parameters(self, out_dict=None, prefix=''):
         """

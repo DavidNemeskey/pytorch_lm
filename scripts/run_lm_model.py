@@ -55,7 +55,7 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     # Turn on training mode which enables dropout.
     ### print('TRAIN', flush=True)
     model.train()
-    
+
     # lr = lr_scheduler.get_lr()[0]
     lr = optimizer.param_groups[0]['lr']
     total_loss = 0
@@ -129,6 +129,7 @@ def repackage_hidden(h):
         return [repackage_hidden(v) for v in h]
 
 def initialize_model(model, initializer):
+    """Recursively initializes all parameters of the model."""
     for p in model.parameters():
         initializer(p.data)
 
