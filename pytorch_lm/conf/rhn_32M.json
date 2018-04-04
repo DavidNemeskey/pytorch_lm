@@ -2,7 +2,6 @@
 	"model": {
 		"class": "GenericRnnModel",
 		"kwargs": {
-			"vocab_size": 10000,
 			"hidden_size": 830,
 			"num_layers": 10,
 			"dropout": 0.35,

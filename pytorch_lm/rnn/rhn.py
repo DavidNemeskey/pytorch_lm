@@ -40,7 +40,7 @@ class Rhn(nn.Module):
         for input_t in map(torch.squeeze, input.chunk(input.size(1), dim=1)):
             # print('INPUT_T', input_t)
             for l in range(self.num_layers):
-                print('L', l)
+                # print('L', l)
                 # The input is processed only by the first layer
                 whx = input_t.matmul(self.w_h) if l == 0 else 0
                 wtx = input_t.matmul(self.w_t) if l == 0 else 0
