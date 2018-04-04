@@ -40,6 +40,10 @@ class Rhn(nn.Module):
     def forward(self, input, s):
         outputs = []
 
+        # To initialize per-sequence dropout
+        for do in self.do_h + self.do_t + self.do_c:
+            do.reset_noise()
+
         # print('INPUT', input, 'S-1', s)
         # chunk() cuts batch_size x 1 x input_size chunks from input
         for input_t in map(torch.squeeze, input.chunk(input.size(1), dim=1)):
