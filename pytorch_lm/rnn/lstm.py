@@ -19,27 +19,39 @@ class LstmCell(nn.Module):
 
     As a reminder: input size is batch_size x input_features.
     """
-    def __init__(self, input_size, hidden_size, dropout=0):
+    def __init__(self, input_size, hidden_size, dropout=0, forget_bias=None):
         """
         Args:
             - input_size: the number of input features
             - hidden_size: the number of cells
-            - dropout: Following Zaremba (2014), dropout is applied on the
-                       input tensor.
+            - dropout: the dropout value (and type) to use. The place where
+                       dropout is applied depends on the subclass.
+            - forget_bias: the value of the forget bias
         """
         super(LstmCell, self).__init__()
-        # TODO: add forget_bias
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.dropout = dropout
+
         self.do = self.create_dropouts()
         for i, do in enumerate(self.do):
             self.add_module('do{}'.format(i), do)
 
         self.w_i = nn.Parameter(torch.Tensor(input_size, 4 * hidden_size))
         self.w_h = nn.Parameter(torch.Tensor(hidden_size, 4 * hidden_size))
-        self.b_i = nn.Parameter(torch.Tensor(4 * hidden_size))
-        self.b_h = nn.Parameter(torch.Tensor(4 * hidden_size))
+        self.b = nn.Parameter(torch.Tensor(4 * hidden_size))
+
+        # f_bias is deleted by the pre-format hook so that it runs only once
+        self.f_bias = self.forget_bias = forget_bias
+        self.register_forward_pre_hook(LstmCell.initialize_f)
+
+    @classmethod
+    def initialize_f(cls, module, _):
+        """Initializes the forget gate."""
+        if module.f_bias is not None:
+            _, b_f, _, _ = module.b.data.chunk(4, 0)
+            b_f.fill_(module.f_bias)
+            module.f_bias = None
 
     def create_dropouts(self):
         """
@@ -104,7 +116,7 @@ class ZarembaLstmCell(LstmCell):
         h_t, c_t = hidden
 
         ifgo = self.do[0](input).matmul(self.w_i) + h_t.matmul(self.w_h)
-        ifgo += self.b_i + self.b_h
+        ifgo += self.b
 
         i, f, g, o = ifgo.chunk(4, 1)
         i = torch.sigmoid(i)
@@ -129,7 +141,7 @@ class MoonLstmCell(LstmCell):
         h_t, c_t = hidden
 
         ifgo = input.matmul(self.w_i) + h_t.matmul(self.w_h)
-        ifgo += self.b_i + self.b_h
+        ifgo += self.b
 
         i, f, g, o = ifgo.chunk(4, 1)
         i = torch.sigmoid(i)
@@ -155,7 +167,7 @@ class TiedGalLstmCell(LstmCell):
         h_t, c_t = hidden
 
         ifgo = self.do[0](input).matmul(self.w_i) + self.do[1](h_t).matmul(self.w_h)
-        ifgo += self.b_i + self.b_h
+        ifgo += self.b
 
         i, f, g, o = ifgo.chunk(4, 1)
         i = torch.sigmoid(i)
@@ -182,17 +194,16 @@ class UntiedGalLstmCell(LstmCell):
 
         w_ii, w_if, w_ig, w_io = self.w_i.chunk(4, 1)
         w_hi, w_hf, w_hg, w_ho = self.w_h.chunk(4, 1)
-        b_ii, b_if, b_ig, b_io = self.b_i.chunk(4, 0)
-        b_hi, b_hf, b_hg, b_ho = self.b_h.chunk(4, 0)
+        b_i, b_f, b_g, b_o = self.b.chunk(4, 0)
 
         i = torch.sigmoid(self.do[0](input).matmul(w_ii) +
-                          self.do[1](h_t).matmul(w_hi) + b_ii + b_hi)
+                          self.do[1](h_t).matmul(w_hi) + b_i)
         f = torch.sigmoid(self.do[2](input).matmul(w_if) +
-                          self.do[3](h_t).matmul(w_hf) + b_if + b_hf)
+                          self.do[3](h_t).matmul(w_hf) + b_f)
         g = torch.tanh(self.do[4](input).matmul(w_ig) +
-                       self.do[5](h_t).matmul(w_hg) + b_ig + b_hg)
+                       self.do[5](h_t).matmul(w_hg) + b_g)
         o = torch.sigmoid(self.do[6](input).matmul(w_io) +
-                          self.do[7](h_t).matmul(w_ho) + b_io + b_ho)
+                          self.do[7](h_t).matmul(w_ho) + b_o)
         c_t = f * c_t + i * g
         h_t = o * torch.tanh(c_t)
 
@@ -218,7 +229,7 @@ class SemeniutaLstmCell(LstmCell):
         h_t, c_t = hidden
 
         ifgo = self.do[1](input).matmul(self.w_i) + h_t.matmul(self.w_h)
-        ifgo += self.b_i + self.b_h
+        ifgo += self.b
 
         i, f, g, o = ifgo.chunk(4, 1)
         i = torch.sigmoid(i)
