@@ -7,17 +7,22 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
-from pytorch_lm.dropout import StatefulDropout
-from pytorch_lm.utils.config import create_object
+from pytorch_lm.dropout import create_dropout
 
 
 class Rhn(nn.Module):
     """Implements Recurrent Highway Networks from Zilly et al. (2017)."""
-    def __init__(self, input_size, hidden_size, num_layers, dropout=0):
+    def __init__(self, input_size, hidden_size, num_layers, dropout=0,
+                 transform_bias=None):
         super(Rhn, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+        self.dropout = dropout
+
+        self.do_h = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
+        self.do_t = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
+        self.do_c = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
 
         self.w_h = nn.Parameter(torch.Tensor(input_size, hidden_size))
         self.w_t = nn.Parameter(torch.Tensor(input_size, hidden_size))
@@ -42,17 +47,17 @@ class Rhn(nn.Module):
             for l in range(self.num_layers):
                 # print('L', l)
                 # The input is processed only by the first layer
-                whx = input_t.matmul(self.w_h) if l == 0 else 0
-                wtx = input_t.matmul(self.w_t) if l == 0 else 0
-                wcx = input_t.matmul(self.w_c) if l == 0 else 0
+                whx = self.do_h[0](input_t).matmul(self.w_h) if l == 0 else 0
+                wtx = self.do_t[0](input_t).matmul(self.w_t) if l == 0 else 0
+                wcx = self.do_c[0](input_t).matmul(self.w_c) if l == 0 else 0
                 # print('WHX', whx)
                 # print('WTX', wtx)
                 # print('WCX', wcx)
 
                 # The gates (and the state)
-                h = torch.tanh(whx + self.r_h[l](s))
-                t = torch.sigmoid(wtx + self.r_t[l](s))
-                c = torch.sigmoid(wcx + self.r_c[l](s))
+                h = torch.tanh(whx + self.do_h[l + 1](self.r_h)[l](s))
+                t = torch.sigmoid(wtx + self.do_t[l + 1](self.r_t)[l](s))
+                c = torch.sigmoid(wcx + self.do_c[l + 1](self.r_c)[l](s))
                 # print('H', h)
                 # print('T', t)
                 # print('C', c)
