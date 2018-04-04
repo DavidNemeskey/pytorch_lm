@@ -59,9 +59,9 @@ class Rhn(nn.Module):
                 # print('WCX', wcx)
 
                 # The gates (and the state)
-                h = torch.tanh(whx + self.do_h[l + 1](self.r_h)[l](s))
-                t = torch.sigmoid(wtx + self.do_t[l + 1](self.r_t)[l](s))
-                c = torch.sigmoid(wcx + self.do_c[l + 1](self.r_c)[l](s))
+                h = torch.tanh(whx + self.r_h[l](self.do_h[l + 1](s)))
+                t = torch.sigmoid(wtx + self.r_t[l](self.do_t[l + 1](s)))
+                c = torch.sigmoid(wcx + self.r_c[l](self.do_c[l + 1](s)))
                 # print('H', h)
                 # print('T', t)
                 # print('C', c)
