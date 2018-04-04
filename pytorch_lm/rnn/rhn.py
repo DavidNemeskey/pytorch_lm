@@ -19,8 +19,6 @@ class RhnLinTCTied(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = dropout
-        # t_bias is deleted by the pre-format hook
-        self.t_bias = self.transform_bias = transform_bias
 
         self.do_h = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
         self.do_t = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
@@ -39,11 +37,13 @@ class RhnLinTCTied(nn.Module):
             for l, p in enumerate(lst, 1):
                 self.add_module('Rb_{}_{}'.format(letter, l), p)
 
+        # t_bias is deleted by the pre-format hook
+        self.t_bias = self.transform_bias = transform_bias
         self.register_forward_pre_hook(RhnLinTCTied.initialize_t)
 
     @classmethod
     def initialize_t(cls, module, _):
-        """Initializes the transform gate biases. Deletes the """
+        """Initializes the transform gate biases."""
         if module.t_bias is not None:
             for p in module.r_t:
                 nn.init.constant(p.bias, module.t_bias)
@@ -92,7 +92,6 @@ class Rhn(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = dropout
-        self.t_bias = self.transform_bias = transform_bias
 
         self.do_h = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
         self.do_t = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
@@ -124,6 +123,8 @@ class Rhn(nn.Module):
             for l, p in enumerate(lst, 1):
                 self.register_parameter('R_{}_{}_bias'.format(letter, l), p)
 
+        # t_bias is deleted by the pre-format hook so that it runs only once
+        self.t_bias = self.transform_bias = transform_bias
         self.register_forward_pre_hook(Rhn.initialize_t)
 
     @classmethod
@@ -183,7 +184,6 @@ class RhnLin(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = dropout
-        self.t_bias = self.transform_bias = transform_bias
 
         self.do_h = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
         self.do_t = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
@@ -206,6 +206,8 @@ class RhnLin(nn.Module):
             for l, p in enumerate(lst, 1):
                 self.add_module('Rb_{}_{}'.format(letter, l), p)
 
+        # t_bias is deleted by the pre-format hook so that it runs only once
+        self.t_bias = self.transform_bias = transform_bias
         self.register_forward_pre_hook(RhnLin.initialize_t)
 
     @classmethod
