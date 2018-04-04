@@ -109,10 +109,12 @@ def read_config(config_file, vocab_size):
     valid = config.pop('valid', {})
     test = config.pop('test', {})
 
-    # Copy all keys from the main dictionary to the sub-dictionaries
+    # Copy all keys from the main dictionary to the sub-dictionaries, but do
+    # not overwrite keys already there
     for k, v in config.items():
         for d in [train, valid, test]:
-            d[k] = v
+            if k not in d:
+                d[k] = v
 
     # Now for the model & stuff (train only)
     try:
@@ -132,8 +134,11 @@ def read_config(config_file, vocab_size):
                                                base_module='torch.nn.init')
     except KeyError:
         raise KeyError('Missing configuration key: "initializer".')
-    if 'lr_scheduler' in config:
-        train['lr_scheduler'] = create_object(config['lr_scheduler'],
+    if 'bias_initializer' in train:
+        train['bias_initializer'] = create_function(train['bias_initializer'],
+                                                    base_module='torch.nn.init')
+    if 'lr_scheduler' in train:
+        train['lr_scheduler'] = create_object(train['lr_scheduler'],
                                               base_module='pytorch_lm.lr_schedule',
                                               args=[train['optimizer']])
     else:

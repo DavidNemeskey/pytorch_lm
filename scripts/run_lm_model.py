@@ -4,6 +4,7 @@
 """Generic language model training script."""
 
 import argparse
+from functional import partial
 import math
 import time
 
@@ -128,10 +129,19 @@ def repackage_hidden(h):
     else:
         return [repackage_hidden(v) for v in h]
 
-def initialize_model(model, initializer):
-    """Recursively initializes all parameters of the model."""
-    for p in model.parameters():
-        initializer(p.data)
+def initialize_model(model, initializer, bias_initializer=None):
+    """
+    Recursively initializes all parameters of the model. It accepts two
+    initializer functions: one for (main) weights and one for biases. The
+    latter defaults to constant zero.
+    """
+    if not bias_initializer:
+        bias_initializer = partial(torch.nn.init.constant, val=0)
+    for name, p in model.named_parameters():
+        if name.lower().endswith('bias'):
+            bias_initializer(p.data)
+        else:
+            initializer(p.data)
 
 
 def main():
@@ -166,8 +176,9 @@ def main():
     valid_data = batchify(corpus.valid, validd['batch_size'], args.cuda)
     test_data = batchify(corpus.test, testd['batch_size'], args.cuda)
 
-    model, optimizer, initializer, lr_scheduler = getall(
-        traind, ['model', 'optimizer', 'initializer', 'lr_scheduler'])
+    model, optimizer, initializer, bias_initializer, lr_scheduler = getall(
+        traind, ['model', 'optimizer', 'initializer',
+                 'bias_initializer', 'lr_scheduler'])
 
     initialize_model(model, initializer)
 
