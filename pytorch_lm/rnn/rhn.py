@@ -19,6 +19,8 @@ class RhnLinTCTied(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = dropout
+        # t_bias is deleted by the pre-format hook
+        self.t_bias = self.transform_bias = transform_bias
 
         self.do_h = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
         self.do_t = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
@@ -36,6 +38,16 @@ class RhnLinTCTied(nn.Module):
         for letter, lst in [('H', self.r_h), ('T', self.r_t)]:
             for l, p in enumerate(lst, 1):
                 self.add_module('Rb_{}_{}'.format(letter, l), p)
+
+        self.register_forward_pre_hook(RhnLinTCTied.initialize_t)
+
+    @classmethod
+    def initialize_t(cls, module, _):
+        """Initializes the transform gate biases. Deletes the """
+        if module.t_bias is not None:
+            for p in module.r_t:
+                nn.init.constant(p.bias, module.t_bias)
+            module.t_bias = None
 
     def forward(self, input, s):
         outputs = []
@@ -80,6 +92,7 @@ class Rhn(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = dropout
+        self.t_bias = self.transform_bias = transform_bias
 
         self.do_h = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
         self.do_t = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
@@ -110,6 +123,16 @@ class Rhn(nn.Module):
         for letter, lst in [('H', self.r_hb), ('T', self.r_tb), ('C', self.r_cb)]:
             for l, p in enumerate(lst, 1):
                 self.register_parameter('R_{}_{}_bias'.format(letter, l), p)
+
+        self.register_forward_pre_hook(Rhn.initialize_t)
+
+    @classmethod
+    def initialize_t(cls, module, _):
+        """Initializes the transform gate biases. Deletes the """
+        if module.t_bias is not None:
+            for p in module.r_tb:
+                nn.init.constant(p, module.t_bias)
+            module.t_bias = None
 
     def forward(self, input, s):
         outputs = []
@@ -160,6 +183,7 @@ class RhnLin(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = dropout
+        self.t_bias = self.transform_bias = transform_bias
 
         self.do_h = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
         self.do_t = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
@@ -181,6 +205,16 @@ class RhnLin(nn.Module):
         for letter, lst in [('H', self.r_h), ('T', self.r_t), ('C', self.r_c)]:
             for l, p in enumerate(lst, 1):
                 self.add_module('Rb_{}_{}'.format(letter, l), p)
+
+        self.register_forward_pre_hook(RhnLin.initialize_t)
+
+    @classmethod
+    def initialize_t(cls, module, _):
+        """Initializes the transform gate biases. Deletes the """
+        if module.t_bias is not None:
+            for p in module.r_t:
+                nn.init.constant(p.bias, module.t_bias)
+            module.t_bias = None
 
     def forward(self, input, s):
         outputs = []
