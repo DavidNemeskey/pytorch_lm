@@ -22,6 +22,10 @@ class RhnLinTCTied(nn.Module):
 
         self.do_h = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
         self.do_t = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
+        for letter, do_list in [('H', self.do_h), ('T', self.do_t)]:
+            self.add_module('Do_{}_w'.format(letter), do_list[0])
+            for l, do in enumerate(do_list[1:], 1):
+                self.add_module('Do_{}_{}'.format(letter, l), do)
 
         self.w_h = nn.Parameter(torch.Tensor(input_size, hidden_size))
         self.w_t = nn.Parameter(torch.Tensor(input_size, hidden_size))
@@ -45,27 +49,18 @@ class RhnLinTCTied(nn.Module):
         for input_t in map(torch.squeeze, input.chunk(input.size(1), dim=1)):
             # print('INPUT_T', input_t)
             for l in range(self.num_layers):
-                # print('L', l)
                 # The input is processed only by the first layer
                 whx = self.do_h[0](input_t).matmul(self.w_h) if l == 0 else 0
                 wtx = self.do_t[0](input_t).matmul(self.w_t) if l == 0 else 0
-                # print('WHX', whx)
-                # print('WTX', wtx)
-                # print('WCX', wcx)
 
                 # The gates (and the state)
                 h = torch.tanh(whx + self.r_h[l](self.do_h[l + 1](s)))
                 t = torch.sigmoid(wtx + self.r_t[l](self.do_t[l + 1](s)))
-                # print('H', h)
-                # print('T', t)
-                # print('C', c)
 
                 # The new state
                 s = (h - s) * t + s
-                # print('S', s)
 
             # Here the output is the current s
-            # print('OUTPUT')
             outputs.append(s)
         return torch.stack(outputs, 1), s
 
@@ -91,6 +86,10 @@ class Rhn(nn.Module):
         self.do_h = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
         self.do_t = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
         self.do_c = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
+        for letter, do_list in [('H', self.do_h), ('T', self.do_t), ('C', self.do_c)]:
+            self.add_module('Do_{}_w'.format(letter), do_list[0])
+            for l, do in enumerate(do_list[1:], 1):
+                self.add_module('Do_{}_{}'.format(letter, l), do)
 
         self.w_h = nn.Parameter(torch.Tensor(input_size, hidden_size))
         self.w_t = nn.Parameter(torch.Tensor(input_size, hidden_size))
@@ -126,14 +125,11 @@ class Rhn(nn.Module):
         for input_t in map(torch.squeeze, input.chunk(input.size(1), dim=1)):
             # print('INPUT_T', input_t)
             for l in range(self.num_layers):
-                # print('L', l)
                 # The input is processed only by the first layer
                 whx = self.do_h[0](input_t).matmul(self.w_h) if l == 0 else 0
                 wtx = self.do_t[0](input_t).matmul(self.w_t) if l == 0 else 0
                 wcx = self.do_c[0](input_t).matmul(self.w_c) if l == 0 else 0
-                # print('WHX', whx)
-                # print('WTX', wtx)
-                # print('WCX', wcx)
+
                 rhs = self.do_h[l + 1](s).matmul(self.r_hw[l]) + self.r_hb[l]
                 rts = self.do_t[l + 1](s).matmul(self.r_tw[l]) + self.r_tb[l]
                 rcs = self.do_c[l + 1](s).matmul(self.r_cw[l]) + self.r_cb[l]
@@ -142,16 +138,11 @@ class Rhn(nn.Module):
                 h = torch.tanh(whx + rhs)
                 t = torch.sigmoid(wtx + rts)
                 c = torch.sigmoid(wcx + rcs)
-                # print('H', h)
-                # print('T', t)
-                # print('C', c)
 
                 # The new state
                 s = h * t + s * c
-                # print('S', s)
 
             # Here the output is the current s
-            # print('OUTPUT')
             outputs.append(s)
         return torch.stack(outputs, 1), s
 
@@ -177,6 +168,10 @@ class RhnLin(nn.Module):
         self.do_h = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
         self.do_t = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
         self.do_c = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
+        for letter, do_list in [('H', self.do_h), ('T', self.do_t), ('C', self.do_c)]:
+            self.add_module('Do_{}_w'.format(letter), do_list[0])
+            for l, do in enumerate(do_list[1:], 1):
+                self.add_module('Do_{}_{}'.format(letter, l), do)
 
         self.w_h = nn.Parameter(torch.Tensor(input_size, hidden_size))
         self.w_t = nn.Parameter(torch.Tensor(input_size, hidden_size))
@@ -203,29 +198,20 @@ class RhnLin(nn.Module):
         for input_t in map(torch.squeeze, input.chunk(input.size(1), dim=1)):
             # print('INPUT_T', input_t)
             for l in range(self.num_layers):
-                # print('L', l)
                 # The input is processed only by the first layer
                 whx = self.do_h[0](input_t).matmul(self.w_h) if l == 0 else 0
                 wtx = self.do_t[0](input_t).matmul(self.w_t) if l == 0 else 0
                 wcx = self.do_c[0](input_t).matmul(self.w_c) if l == 0 else 0
-                # print('WHX', whx)
-                # print('WTX', wtx)
-                # print('WCX', wcx)
 
                 # The gates (and the state)
                 h = torch.tanh(whx + self.r_h[l](self.do_h[l + 1](s)))
                 t = torch.sigmoid(wtx + self.r_t[l](self.do_t[l + 1](s)))
                 c = torch.sigmoid(wcx + self.r_c[l](self.do_c[l + 1](s)))
-                # print('H', h)
-                # print('T', t)
-                # print('C', c)
 
                 # The new state
                 s = h * t + s * c
-                # print('S', s)
 
             # Here the output is the current s
-            # print('OUTPUT')
             outputs.append(s)
         return torch.stack(outputs, 1), s
 
