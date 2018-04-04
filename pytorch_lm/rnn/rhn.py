@@ -14,7 +14,7 @@ class RhnLinTCTied(nn.Module):
     """Implements Recurrent Highway Networks from Zilly et al. (2017)."""
     def __init__(self, input_size, hidden_size, num_layers, dropout=0,
                  transform_bias=None):
-        super(Rhn, self).__init__()
+        super(RhnLinTCTied, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -37,7 +37,7 @@ class RhnLinTCTied(nn.Module):
         outputs = []
 
         # To initialize per-sequence dropout
-        for do in self.do_h + self.do_t + self.do_c:
+        for do in self.do_h + self.do_t:
             do.reset_noise()
 
         # print('INPUT', input, 'S-1', s)
@@ -168,7 +168,7 @@ class RhnLin(nn.Module):
     """Implements Recurrent Highway Networks from Zilly et al. (2017)."""
     def __init__(self, input_size, hidden_size, num_layers, dropout=0,
                  transform_bias=None):
-        super(Rhn, self).__init__()
+        super(RhnLin, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
