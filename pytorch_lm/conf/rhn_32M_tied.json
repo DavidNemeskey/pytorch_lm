@@ -7,7 +7,7 @@
 			"dropout": "0.35s",
 			"output_dropout": "0.35s",
 			"rnn": {
-				"class": "RhnLin"
+				"class": "RhnLinTCTied"
 			}
 		}
 	},
@@ -29,5 +29,5 @@
 	"num_epochs": 39,
 	"batch_size": 20,
 	"num_steps": 35,
-	"grad_clip": 3
+	"grad_clip": 4
 }
