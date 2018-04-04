@@ -1,22 +1,25 @@
 {
+	"from": "https://github.com/julian121266/RecurrentHighwayNetworks/",
 	"model": {
-		"class": "GenericRnnModel",
+		"class": "PressAndWolfModel",
 		"kwargs": {
 			"hidden_size": 830,
 			"num_layers": 10,
-			"dropout": "0.35s",
-			"output_dropout": "0.35s",
+			"dropout": "0.25s",
+			"embedding_dropout": "0.25s",
+			"output_dropout": "0.75s",
 			"rnn": {
 				"class": "RhnLinTCTied",
 				"kwargs": {
 				    "transform_bias": -2
 				}
-			}
+			},
+			"projection_lambda": 0
 		}
 	},
 	"optimizer": {
 		"class": "torch.optim.SGD",
-		"args": [1.0]
+		"args": [0.2]
 	},
 	"initializer": {
 		"function": "uniform",
@@ -25,12 +28,12 @@
 	"lr_scheduler": {
 		"class": "ZarembaScheduleLR",
 		"kwargs": {
-			"lr_decay": 0.97,
-			"decay_delay": 1
+			"lr_decay": 0.98,
+			"decay_delay": 20
 		}
 	},
-	"num_epochs": 55,
+	"num_epochs": 500,
 	"batch_size": 20,
 	"num_steps": 35,
-	"grad_clip": 4
+	"grad_clip": 10
 }
