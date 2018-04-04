@@ -44,10 +44,8 @@ class RhnLinTCTied(nn.Module):
         for do in self.do_h + self.do_t:
             do.reset_noise()
 
-        # print('INPUT', input, 'S-1', s)
         # chunk() cuts batch_size x 1 x input_size chunks from input
         for input_t in map(torch.squeeze, input.chunk(input.size(1), dim=1)):
-            # print('INPUT_T', input_t)
             for l in range(self.num_layers):
                 # The input is processed only by the first layer
                 whx = self.do_h[0](input_t).matmul(self.w_h) if l == 0 else 0
@@ -120,10 +118,8 @@ class Rhn(nn.Module):
         for do in self.do_h + self.do_t + self.do_c:
             do.reset_noise()
 
-        # print('INPUT', input, 'S-1', s)
         # chunk() cuts batch_size x 1 x input_size chunks from input
         for input_t in map(torch.squeeze, input.chunk(input.size(1), dim=1)):
-            # print('INPUT_T', input_t)
             for l in range(self.num_layers):
                 # The input is processed only by the first layer
                 whx = self.do_h[0](input_t).matmul(self.w_h) if l == 0 else 0
@@ -193,10 +189,8 @@ class RhnLin(nn.Module):
         for do in self.do_h + self.do_t + self.do_c:
             do.reset_noise()
 
-        # print('INPUT', input, 'S-1', s)
         # chunk() cuts batch_size x 1 x input_size chunks from input
         for input_t in map(torch.squeeze, input.chunk(input.size(1), dim=1)):
-            # print('INPUT_T', input_t)
             for l in range(self.num_layers):
                 # The input is processed only by the first layer
                 whx = self.do_h[0](input_t).matmul(self.w_h) if l == 0 else 0
