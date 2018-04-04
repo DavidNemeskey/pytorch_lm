@@ -12,7 +12,7 @@ def readme():
         return f.read()
 
 setup(name='pytorch_lm',
-      version='0.2',
+      version='0.3',
       description='Pytorch-based experiments for Language Modeling',
       long_description=readme(),
       url='https://github.com/DavidNemeskey/pytorch_lm',
