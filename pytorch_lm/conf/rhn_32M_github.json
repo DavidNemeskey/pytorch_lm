@@ -20,7 +20,10 @@
     },
     "optimizer": {
         "class": "torch.optim.SGD",
-        "args": [0.2]
+        "kwargs": {
+            "lr": 0.2,
+            "weight_decay": 1e-7
+        }
     },
     "initializer": {
         "function": "uniform",
@@ -36,5 +39,5 @@
     "num_epochs": 500,
     "batch_size": 20,
     "num_steps": 35,
-    "grad_clip": 10,
+    "grad_clip": 10
 }

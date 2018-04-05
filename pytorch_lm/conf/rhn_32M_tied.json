@@ -1,37 +1,40 @@
 {
-	"model": {
-		"class": "GenericRnnModel",
-		"kwargs": {
-			"hidden_size": 830,
-			"output_dropout": "0.35s",
-			"rnn": {
-				"class": "RhnLinTCTied",
-				"kwargs": {
-					"num_layers": 10,
-					"input_dropout": "0.35s",
-					"state_dropout": "0.35s",
-				    "transform_bias": -2
-				}
-			}
-		}
-	},
-	"optimizer": {
-		"class": "torch.optim.SGD",
-		"args": [1.0]
-	},
-	"initializer": {
-		"function": "uniform",
-		"kwargs": {"a": -0.04, "b": 0.04}
-	},
-	"lr_scheduler": {
-		"class": "ZarembaScheduleLR",
-		"kwargs": {
-			"lr_decay": 0.97,
-			"decay_delay": 1
-		}
-	},
-	"num_epochs": 55,
-	"batch_size": 20,
-	"num_steps": 35,
-	"grad_clip": 4
+    "model": {
+        "class": "GenericRnnModel",
+        "kwargs": {
+            "hidden_size": 830,
+            "output_dropout": "0.35s",
+            "rnn": {
+                "class": "RhnLinTCTied",
+                "kwargs": {
+                    "num_layers": 10,
+                    "input_dropout": "0.35s",
+                    "state_dropout": "0.35s",
+                    "transform_bias": -2
+                }
+            }
+        }
+    },
+    "optimizer": {
+        "class": "torch.optim.SGD",
+        "kwargs": {
+            "lr": 1.0,
+            "weight_decay": 1e-7
+        }
+    },
+    "initializer": {
+        "function": "uniform",
+        "kwargs": {"a": -0.04, "b": 0.04}
+    },
+    "lr_scheduler": {
+        "class": "ZarembaScheduleLR",
+        "kwargs": {
+            "lr_decay": 0.97,
+            "decay_delay": 1
+        }
+    },
+    "num_epochs": 55,
+    "batch_size": 20,
+    "num_steps": 35,
+    "grad_clip": 4
 }
