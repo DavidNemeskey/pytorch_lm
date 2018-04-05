@@ -3,12 +3,13 @@
 		"class": "GenericRnnModel",
 		"kwargs": {
 			"hidden_size": 830,
-			"num_layers": 10,
-			"dropout": "0.35s",
 			"output_dropout": "0.35s",
 			"rnn": {
 				"class": "RhnLin",
 				"kwargs": {
+					"num_layers": 10,
+					"input_dropout": "0.35s",
+					"state_dropout": "0.35s",
 				    "transform_bias": -2
 				}
 			}

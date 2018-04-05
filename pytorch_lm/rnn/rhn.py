@@ -12,16 +12,19 @@ from pytorch_lm.dropout import create_dropout
 
 class RhnLinTCTied(nn.Module):
     """Implements Recurrent Highway Networks from Zilly et al. (2017)."""
-    def __init__(self, input_size, hidden_size, num_layers, dropout=0,
-                 transform_bias=None):
+    def __init__(self, input_size, hidden_size, num_layers, input_dropout=0,
+                 state_dropout=0, transform_bias=None):
         super(RhnLinTCTied, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.dropout = dropout
+        self.input_dropout = input_dropout
+        self.state_dropout = state_dropout
 
-        self.do_h = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
-        self.do_t = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
+        self.do_h = [create_dropout(input_dropout if l == 0 else state_dropout)
+                     for l in range(self.num_layers + 1)]
+        self.do_t = [create_dropout(input_dropout if l == 0 else state_dropout)
+                     for l in range(self.num_layers + 1)]
         for letter, do_list in [('H', self.do_h), ('T', self.do_t)]:
             self.add_module('Do_{}_w'.format(letter), do_list[0])
             for l, do in enumerate(do_list[1:], 1):
@@ -85,17 +88,21 @@ class RhnLinTCTied(nn.Module):
 
 class Rhn(nn.Module):
     """Implements Recurrent Highway Networks from Zilly et al. (2017)."""
-    def __init__(self, input_size, hidden_size, num_layers, dropout=0,
-                 transform_bias=None):
+    def __init__(self, input_size, hidden_size, num_layers, input_dropout=0,
+                 state_dropout=0, transform_bias=None):
         super(Rhn, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.dropout = dropout
+        self.input_dropout = input_dropout
+        self.state_dropout = state_dropout
 
-        self.do_h = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
-        self.do_t = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
-        self.do_c = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
+        self.do_h = [create_dropout(input_dropout if l == 0 else state_dropout)
+                     for l in range(self.num_layers + 1)]
+        self.do_t = [create_dropout(input_dropout if l == 0 else state_dropout)
+                     for l in range(self.num_layers + 1)]
+        self.do_c = [create_dropout(input_dropout if l == 0 else state_dropout)
+                     for l in range(self.num_layers + 1)]
         for letter, do_list in [('H', self.do_h), ('T', self.do_t), ('C', self.do_c)]:
             self.add_module('Do_{}_w'.format(letter), do_list[0])
             for l, do in enumerate(do_list[1:], 1):
@@ -177,17 +184,21 @@ class Rhn(nn.Module):
 
 class RhnLin(nn.Module):
     """Implements Recurrent Highway Networks from Zilly et al. (2017)."""
-    def __init__(self, input_size, hidden_size, num_layers, dropout=0,
-                 transform_bias=None):
+    def __init__(self, input_size, hidden_size, num_layers, input_dropout=0,
+                 state_dropout=0, transform_bias=None):
         super(RhnLin, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.dropout = dropout
+        self.input_dropout = input_dropout
+        self.state_dropout = state_dropout
 
-        self.do_h = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
-        self.do_t = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
-        self.do_c = [create_dropout(dropout) for _ in range(self.num_layers + 1)]
+        self.do_h = [create_dropout(input_dropout if l == 0 else state_dropout)
+                     for l in range(self.num_layers + 1)]
+        self.do_t = [create_dropout(input_dropout if l == 0 else state_dropout)
+                     for l in range(self.num_layers + 1)]
+        self.do_c = [create_dropout(input_dropout if l == 0 else state_dropout)
+                     for l in range(self.num_layers + 1)]
         for letter, do_list in [('H', self.do_h), ('T', self.do_t), ('C', self.do_c)]:
             self.add_module('Do_{}_w'.format(letter), do_list[0])
             for l, do in enumerate(do_list[1:], 1):
