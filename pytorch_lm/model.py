@@ -23,7 +23,6 @@ class GenericRnnModel(LMModel):
     Implements a generic embedding - RNN - softmax LM. The first few
     parameters are self-explanatory. The rest are:
 
-    - dropout: the dropout probability between LSTM layers (float)
     - rnn: a dictionary:
     {
       "class": the RNN subclass
@@ -34,13 +33,11 @@ class GenericRnnModel(LMModel):
       (a dropout string)
     - output_dropout: the dropout applied on the RNN output.
     """
-    def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
+    def __init__(self, vocab_size, hidden_size=200,
                  rnn=None, embedding_dropout=None, output_dropout=None):
         super(GenericRnnModel, self).__init__()
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.dropout = dropout
 
         # Embedding & output dropouts
         self.emb_do = create_dropout(embedding_dropout, True)
@@ -49,7 +46,7 @@ class GenericRnnModel(LMModel):
         self.encoder = nn.Embedding(vocab_size, hidden_size)
         self.rnn = create_object(
             rnn, base_module='pytorch_lm.rnn',
-            args=[hidden_size, hidden_size, num_layers, dropout]
+            args=[hidden_size, hidden_size]
         )
         self.decoder = nn.Linear(hidden_size, vocab_size)
 
@@ -114,11 +111,13 @@ class GenericLstmModel(GenericRnnModel):
         rnn_setup = {
             'class': 'Lstm',
             'kwargs': {
-                'cell_data': cell_data
+                'cell_data': cell_data,
+                'num_layers': num_layers,
+                'dropout': dropout
             }
         }
         super(GenericLstmModel, self).__init__(
-            vocab_size, hidden_size, num_layers, dropout, rnn_setup,
+            vocab_size, hidden_size, rnn_setup,
             embedding_dropout, output_dropout
         )
 
@@ -152,12 +151,11 @@ class PressAndWolfModel(GenericRnnModel):
     The default is weight tying and projection with lambda = 0.15, as in the
     paper.
     """
-    def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
+    def __init__(self, vocab_size, hidden_size=200,
                  rnn=None, embedding_dropout=None, output_dropout=None,
                  projection_lambda=0.15, weight_tying=True):
         super(PressAndWolfModel, self).__init__(
-            vocab_size, hidden_size, num_layers, dropout,
-            rnn, embedding_dropout, output_dropout
+            vocab_size, hidden_size, rnn, embedding_dropout, output_dropout
         )
 
         if weight_tying:
