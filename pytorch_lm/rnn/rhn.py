@@ -34,7 +34,7 @@ class RhnBase(nn.Module):
             batch_size, self.hidden_size).zero_().type(self.w_h.type()))
 
 
-class OfficialRhn(nn.Module):
+class OfficialRhn(RhnBase):
     """Pytorch version of the version implemented in Zilly's repo."""
     def __init__(self, input_size, hidden_size, num_layers, input_dropout=0,
                  state_dropout=0, transform_bias=None):
@@ -89,7 +89,7 @@ class OfficialRhn(nn.Module):
             module.t_bias = None
 
 
-class RhnLinTCTied(nn.Module):
+class RhnLinTCTied(RhnBase):
     """Implements Recurrent Highway Networks from Zilly et al. (2017)."""
     def __init__(self, input_size, hidden_size, num_layers, input_dropout=0,
                  state_dropout=0, transform_bias=None):
@@ -150,7 +150,7 @@ class RhnLinTCTied(nn.Module):
         return torch.stack(outputs, 1), s
 
 
-class Rhn(nn.Module):
+class Rhn(RhnBase):
     """Implements Recurrent Highway Networks from Zilly et al. (2017)."""
     def __init__(self, input_size, hidden_size, num_layers, input_dropout=0,
                  state_dropout=0, transform_bias=None):
@@ -235,7 +235,7 @@ class Rhn(nn.Module):
         return torch.stack(outputs, 1), s
 
 
-class RhnLin(nn.Module):
+class RhnLin(RhnBase):
     """Implements Recurrent Highway Networks from Zilly et al. (2017)."""
     def __init__(self, input_size, hidden_size, num_layers, input_dropout=0,
                  state_dropout=0, transform_bias=None):
