@@ -66,8 +66,17 @@ class GenericRnnModel(LMModel):
         # Embedding dropout
         if self.emb_do:
             self.emb_do.reset_noise()
-            mask = self.emb_do(torch.ones_like(input).type_as(emb))
-            emb = emb * mask.unsqueeze(2).expand_as(emb)
+            # Creates the input embedding mask. Adapted
+            # from https://github.com/julian121266/RecurrentHighwayNetworks
+            mask = self.emb_do(torch.ones_like(input).type_as(emb)).cpu()
+
+            for b in range(mask.size()[0]):
+                m = {}
+                for n1 in range(mask.size()[1]):
+                    x = m.setdefault(input[b][n1].item(), mask[b][n1].item())
+                    mask[b][n1] = x
+            # print('UNSQ', mask.unsqueeze(2).expand_as(emb))
+            emb = emb * mask.type_as(emb).unsqueeze(2).expand_as(emb)
         return emb
 
     def _rnn(self, emb, hidden):

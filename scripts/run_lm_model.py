@@ -4,7 +4,7 @@
 """Generic language model training script."""
 
 import argparse
-from functional import partial
+from functools import partial
 import math
 import time
 
