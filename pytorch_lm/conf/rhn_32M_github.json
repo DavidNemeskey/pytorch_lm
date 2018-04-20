@@ -7,7 +7,7 @@
             "embedding_dropout": "0.25s",
             "output_dropout": "0.75s",
             "rnn": {
-                "class": "RhnLinTCTied",
+                "class": "OfficialRhn",
                 "kwargs": {
                     "num_layers": 10,
                     "input_dropout": "0.75s",
@@ -32,7 +32,7 @@
     "lr_scheduler": {
         "class": "ZarembaScheduleLR",
         "kwargs": {
-            "lr_decay": 0.98,
+            "lr_decay": 0.9804,
             "decay_delay": 20
         }
     },
