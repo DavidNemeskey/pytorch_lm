@@ -59,15 +59,15 @@ class OfficialRhn(RhnBase):
         outputs = []
 
         # To initialize per-sequence dropout
-        self.input_do.reset()
-        self.state_do.reset()
+        self.input_do.reset_noise()
+        self.state_do.reset_noise()
 
         # chunk() cuts batch_size x 1 x input_size chunks from input
         for input_t in map(torch.squeeze, input.chunk(input.size(1), dim=1)):
             for l in range(self.num_layers):
                 # The input is processed only by the first layer
-                whx = self.input_do[0](input_t).matmul(self.w_h) if l == 0 else 0
-                wtx = self.input_do[0](input_t).matmul(self.w_t) if l == 0 else 0
+                whx = self.input_do(input_t).matmul(self.w_h) if l == 0 else 0
+                wtx = self.input_do(input_t).matmul(self.w_t) if l == 0 else 0
 
                 # The gates (and the state)
                 h = torch.tanh(whx + self.r_h[l](self.state_do(s)))
