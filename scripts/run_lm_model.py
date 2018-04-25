@@ -38,10 +38,15 @@ def parse_arguments():
                              'unshuffled PTB.')
     parser.add_argument('--model', '-m', type=str, default='LSTM',
                         help='the model key name.')
+    parser.add_argument('--early-stop', '-e', type=int, default=0,
+                        help='early stopping: stop if the validation loss does '
+                             'not improve for this many epochs.')
     parser.add_argument('--seed', '-s', type=int, default=1111, help='random seed')
     parser.add_argument('--cuda', '-c', action='store_true', help='use CUDA')
     parser.add_argument('--config-file', '-C', required=True,
                         help='the configuration file.')
+    parser.add_argument('--save', '-S', type=str,
+                        help='the name of the file to save the model to (if any)')
     parser.add_argument('--log-level', '-L', type=str, default=None,
                         choices=['debug', 'info', 'warning', 'error', 'critical'],
                         help='the logging level.')
@@ -54,7 +59,6 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     optimizer, batch_size, num_steps, grad_clip = getall(
         config, ['optimizer', 'batch_size', 'num_steps', 'grad_clip'])
     # Turn on training mode which enables dropout.
-    ### print('TRAIN', flush=True)
     model.train()
 
     # lr = lr_scheduler.get_lr()[0]
@@ -81,15 +85,14 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         if grad_clip:
             torch.nn.utils.clip_grad_norm(model.parameters(), grad_clip)
-        ### for name, p in model.named_parameters():
-        ###     print('GRAD', name, p.grad.data)
+        # for name, p in model.named_parameters():
+        #     print('GRAD', name, p.grad.data)
 
         optimizer.step()
         # for name, p in model.named_parameters():
         #     p.data.add_(-1 * lr, p.grad.data)
 
         total_loss += loss.data / num_steps
-        ### print('total loss', total_loss, flush=True)
 
         if batch % log_interval == 0 and batch > 0:
             # cur_loss = total_loss[0] / log_interval
@@ -106,7 +109,6 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
 
 def evaluate(model, corpus, data_source, criterion, batch_size, num_steps):
     # Turn on evaluation mode which disables dropout.
-    ### print('EVALUATION', flush=True)
     model.eval()
     total_loss = 0
     data_len = data_source.size(1)
@@ -117,7 +119,6 @@ def evaluate(model, corpus, data_source, criterion, batch_size, num_steps):
         cost = criterion(output, targets).data
         total_loss += cost
         hidden = repackage_hidden(hidden)
-    ### print('total eval loss', total_loss, flush=True)
     # return total_loss[0] / data_len
     return total_loss.item() / data_len
 
@@ -195,7 +196,8 @@ def main():
                              reduce_across_timesteps='sum')
 
     # Loop over epochs.
-    # best_val_loss = None
+    best_val_loss = None
+    not_improved_for = 0
 
     # At any point you can hit Ctrl + C to break out of training early.
     try:
@@ -216,19 +218,26 @@ def main():
                             epoch, (time.time() - epoch_start_time),
                             val_loss, math.exp(val_loss)))
             logger.info('-' * 89)
-            ### sys.exit()
             # Save the model if the validation loss is the best we've seen so far.
-            # if not best_val_loss or val_loss < best_val_loss:
-            #     with open(args.save, 'wb') as f:
-            #         torch.save(model, f)
-            #     best_val_loss = val_loss
+            if not best_val_loss or val_loss < best_val_loss:
+                with open(args.save, 'wb') as f:
+                    torch.save(model, f)
+                best_val_loss = val_loss
+                not_improved_for = 0
+            else:
+                not_improved_for += 1
+
+            if args.early_stop > 0 and not_improved_for == args.early_stop:
+                logger.info('Validation performance has not improved for '
+                            '{} epochs; stopping early'.format(not_improved_for))
+                break
     except KeyboardInterrupt:
         logger.info('-' * 89)
         logger.info('Exiting from training early')
 
     # Load the best saved model.
-    # with open(args.save, 'rb') as f:
-    #     model = torch.load(f)
+    with open(args.save, 'rb') as f:
+        model = torch.load(f)
 
     # Run on test data.
     test_loss = evaluate(model, corpus, test_data,
