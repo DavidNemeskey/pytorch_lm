@@ -1,6 +1,6 @@
 {
 	"model": {
-		"class": "MediumZarembaModel"
+		"class": "MediumLstmModel"
 	},
 	"optimizer": {
 		"class": "torch.optim.SGD",

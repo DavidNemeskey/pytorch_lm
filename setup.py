@@ -12,7 +12,7 @@ def readme():
         return f.read()
 
 setup(name='pytorch_lm',
-      version='0.2',
+      version='0.3',
       description='Pytorch-based experiments for Language Modeling',
       long_description=readme(),
       url='https://github.com/DavidNemeskey/pytorch_lm',
@@ -53,7 +53,7 @@ setup(name='pytorch_lm',
       },
       # Install the scripts
       scripts=[
-          'scripts/zaremba_pytorch.py',
+          'scripts/run_lm_model.py',
       ],
       test_suite = 'tests',
       # Tensorflow and numpy can be installed from requirement files, as they

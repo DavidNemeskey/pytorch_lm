@@ -4,6 +4,7 @@
 """Generic language model training script."""
 
 import argparse
+from functools import partial
 import math
 import time
 
@@ -12,6 +13,7 @@ from torch.autograd import Variable
 
 from pytorch_lm.data import Corpus, batchify, get_batch
 from pytorch_lm.loss import SequenceLoss
+from pytorch_lm.lr_schedule import lr_step_at_epoch_start
 from pytorch_lm.utils.config import read_config
 from pytorch_lm.utils.lang import getall
 from pytorch_lm.utils.logging import setup_stream_logger
@@ -49,13 +51,14 @@ def parse_arguments():
 
 
 def train(model, corpus, config, train_data, criterion, epoch, log_interval):
-    optimizer, lr_schedule, batch_size, num_steps, grad_clip = getall(
-        config, ['optimizer', 'lr_scheduler',
-                 'batch_size', 'num_steps', 'grad_clip'])
+    optimizer, batch_size, num_steps, grad_clip = getall(
+        config, ['optimizer', 'batch_size', 'num_steps', 'grad_clip'])
     # Turn on training mode which enables dropout.
+    ### print('TRAIN', flush=True)
     model.train()
-    lr_schedule.step()
-    lr = lr_schedule.get_lr()[0]
+
+    # lr = lr_scheduler.get_lr()[0]
+    lr = optimizer.param_groups[0]['lr']
     total_loss = 0
     start_time = time.time()
     data_len = train_data.size(1)
@@ -78,15 +81,19 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         if grad_clip:
             torch.nn.utils.clip_grad_norm(model.parameters(), grad_clip)
+        ### for name, p in model.named_parameters():
+        ###     print('GRAD', name, p.grad.data)
 
         optimizer.step()
         # for name, p in model.named_parameters():
         #     p.data.add_(-1 * lr, p.grad.data)
 
         total_loss += loss.data / num_steps
+        ### print('total loss', total_loss, flush=True)
 
         if batch % log_interval == 0 and batch > 0:
-            cur_loss = total_loss[0] / log_interval
+            # cur_loss = total_loss[0] / log_interval
+            cur_loss = total_loss.item() / log_interval
             elapsed = time.time() - start_time
             logger.info('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | '
                         'ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(
@@ -99,6 +106,7 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
 
 def evaluate(model, corpus, data_source, criterion, batch_size, num_steps):
     # Turn on evaluation mode which disables dropout.
+    ### print('EVALUATION', flush=True)
     model.eval()
     total_loss = 0
     data_len = data_source.size(1)
@@ -109,7 +117,9 @@ def evaluate(model, corpus, data_source, criterion, batch_size, num_steps):
         cost = criterion(output, targets).data
         total_loss += cost
         hidden = repackage_hidden(hidden)
-    return total_loss[0] / data_len
+    ### print('total eval loss', total_loss, flush=True)
+    # return total_loss[0] / data_len
+    return total_loss.item() / data_len
 
 
 def repackage_hidden(h):
@@ -119,9 +129,19 @@ def repackage_hidden(h):
     else:
         return [repackage_hidden(v) for v in h]
 
-def initialize_model(model, initializer):
-    for p in model.parameters():
-        initializer(p.data)
+def initialize_model(model, initializer, bias_initializer=None):
+    """
+    Recursively initializes all parameters of the model. It accepts two
+    initializer functions: one for (main) weights and one for biases. The
+    latter defaults to constant zero.
+    """
+    if not bias_initializer:
+        bias_initializer = partial(torch.nn.init.constant, val=0)
+    for name, p in model.named_parameters():
+        if name.lower().endswith('bias'):
+            bias_initializer(p.data)
+        else:
+            initializer(p.data)
 
 
 def main():
@@ -156,8 +176,9 @@ def main():
     valid_data = batchify(corpus.valid, validd['batch_size'], args.cuda)
     test_data = batchify(corpus.test, testd['batch_size'], args.cuda)
 
-    model, optimizer, initializer, lr_schedule = getall(
-        traind, ['model', 'optimizer', 'initializer', 'lr_scheduler'])
+    model, optimizer, initializer, bias_initializer, lr_scheduler = getall(
+        traind, ['model', 'optimizer', 'initializer',
+                 'bias_initializer', 'lr_scheduler'])
 
     initialize_model(model, initializer)
 
@@ -180,17 +201,22 @@ def main():
     try:
         for epoch in range(1, traind['num_epochs'] + 1):
             epoch_start_time = time.time()
+            if lr_step_at_epoch_start(lr_scheduler):
+                lr_scheduler.step()
             train(model, corpus, traind, train_data, criterion,
                   epoch, args.log_interval)
             val_loss = evaluate(model, corpus, valid_data,
                                 criterion, validd['batch_size'],
                                 validd['num_steps'])
+            if not lr_step_at_epoch_start(lr_scheduler):
+                lr_scheduler.step(val_loss)
             logger.info('-' * 89)
             logger.info('| end of epoch {:3d} | time: {:5.2f}s | '
                         'valid loss {:5.2f} | valid ppl {:8.2f}'.format(
                             epoch, (time.time() - epoch_start_time),
                             val_loss, math.exp(val_loss)))
             logger.info('-' * 89)
+            ### sys.exit()
             # Save the model if the validation loss is the best we've seen so far.
             # if not best_val_loss or val_loss < best_val_loss:
             #     with open(args.save, 'wb') as f:

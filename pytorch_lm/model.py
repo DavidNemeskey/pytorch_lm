@@ -1,6 +1,8 @@
+import torch
 import torch.nn as nn
 
-from pytorch_lm.lstm import Lstm
+from pytorch_lm.dropout import create_dropout
+from pytorch_lm.utils.config import create_object
 
 
 class LMModel(nn.Module):
@@ -16,47 +18,137 @@ class LMModel(nn.Module):
         return 0
 
 
-class CustomZarembaModel(LMModel):
-    """Implements a generic embedding - LSTM - softmax LM."""
-    def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5):
-        super(CustomZarembaModel, self).__init__()
+class GenericRnnModel(LMModel):
+    """
+    Implements a generic embedding - RNN - softmax LM. The first few
+    parameters are self-explanatory. The rest are:
+
+    - rnn: a dictionary:
+    {
+      "class": the RNN subclass
+      "args": its arguments (apart from input & hidden size and dropout prob.)
+      "kwargs": its keyword arguments (likewise)
+    }
+    - embedding_dropout: per-row dropout on the embedding matrix
+      (a dropout string)
+    - output_dropout: the dropout applied on the RNN output.
+    """
+    def __init__(self, vocab_size, hidden_size=200,
+                 rnn=None, embedding_dropout=None, output_dropout=None):
+        super(GenericRnnModel, self).__init__()
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.dropout = dropout
+
+        # Embedding & output dropouts
+        self.emb_do = create_dropout(embedding_dropout, True)
+        self.out_do = create_dropout(output_dropout)
 
         self.encoder = nn.Embedding(vocab_size, hidden_size)
-        self.rnn = Lstm(hidden_size, hidden_size, num_layers, dropout)
+        self.rnn = create_object(
+            rnn, base_module='pytorch_lm.rnn',
+            args=[hidden_size, hidden_size]
+        )
         self.decoder = nn.Linear(hidden_size, vocab_size)
 
+    # ----- OK, I am not sure this is the best one can come up with, but -----
+    # ----- I really want to keep PressAndWolfModel as a separate class
+
     def forward(self, input, hidden):
+        emb = self._encode(input)
+        output, hidden = self._rnn(emb, hidden)
+        decoded = self._decode(output)
+        return decoded, hidden
+
+    def _encode(self, input):
+        """Encodes the input with the encoder."""
         emb = self.encoder(input)
+
+        # Embedding dropout
+        if self.emb_do:
+            self.emb_do.reset_noise()
+            # Creates the input embedding mask. A much faster version of the
+            # solution in
+            # from https://github.com/julian121266/RecurrentHighwayNetworks
+            mask = self.emb_do(torch.ones_like(input).type_as(emb)).cpu()
+
+            for b in range(mask.size()[0]):
+                m = {}
+                for n1 in range(mask.size()[1]):
+                    x = m.setdefault(input[b][n1].item(), mask[b][n1].item())
+                    mask[b][n1] = x
+            emb = emb * mask.type_as(emb).unsqueeze(2).expand_as(emb)
+        return emb
+
+    def _rnn(self, emb, hidden):
+        """Runs the RNN on the embedded input."""
         # self.rnn.flatten_parameters()
         output, hidden = self.rnn(emb, hidden)
+        self.out_do.reset_noise()
+        output = self.out_do(output)
+        return output, hidden
+
+    def _decode(self, output):
+        """Runs softmax (etc.) on the output of the (last) RNN layer."""
         decoded = self.decoder(
             output.view(output.size(0) * output.size(1), output.size(2)))
-        return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden
+        return decoded.view(output.size(0), output.size(1), decoded.size(1))
+
+    # ----- End of forward() ------
 
     def init_hidden(self, batch_size):
         return self.rnn.init_hidden(batch_size)
 
 
-class SmallZarembaModel(CustomZarembaModel):
+class GenericLstmModel(GenericRnnModel):
+    """
+    Implements a generic embedding - LSTM - softmax LM. The first few
+    parameters are self-explanatory. The rest are:
+
+    - dropout: the dropout probability between LSTM layers (float)
+    - cell_data: a dictionary:
+    {
+      "class": the LstmCell subclass
+      "args": its arguments (apart from input & hidden size and dropout prob.)
+      "kwargs": its keyword arguments (likewise)
+    }
+    - embedding_dropout: per-row dropout on the embedding matrix
+      (a dropout string)
+    - output_dropout: the dropout applied on the RNN output.
+    """
+    def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
+                 cell_data=None, embedding_dropout=None, output_dropout=None):
+        rnn_setup = {
+            'class': 'Lstm',
+            'kwargs': {
+                'cell_data': cell_data,
+                'num_layers': num_layers,
+                'dropout': dropout
+            }
+        }
+        super(GenericLstmModel, self).__init__(
+            vocab_size, hidden_size, rnn_setup,
+            embedding_dropout, output_dropout
+        )
+
+
+class SmallLstmModel(GenericLstmModel):
     def __init__(self, vocab_size):
-        super(SmallZarembaModel, self).__init__(vocab_size, 200, 2, 0)
+        super(SmallLstmModel, self).__init__(vocab_size, 200, 2, 0)
 
 
-class MediumZarembaModel(CustomZarembaModel):
+class MediumLstmModel(GenericLstmModel):
     def __init__(self, vocab_size):
-        super(MediumZarembaModel, self).__init__(vocab_size, 650, 2, 0.5)
+        super(MediumLstmModel, self).__init__(vocab_size, 650, 2, 0.5,
+                                              output_dropout='0.5')
 
 
-class LargeZarembaModel(CustomZarembaModel):
+class LargeLstmModel(GenericLstmModel):
     def __init__(self, vocab_size):
-        super(LargeZarembaModel, self).__init__(vocab_size, 1500, 2, 0.65)
+        super(LargeLstmModel, self).__init__(vocab_size, 1500, 2, 0.65,
+                                             output_dropout='0.65')
 
 
-class PressAndWolfModel(CustomZarembaModel):
+class PressAndWolfModel(GenericRnnModel):
     """
     Optionally tie weights as in:
     "Using the Output Embedding to Improve Language Models" (Press & Wolf 2016)
@@ -68,10 +160,13 @@ class PressAndWolfModel(CustomZarembaModel):
     The default is weight tying and projection with lambda = 0.15, as in the
     paper.
     """
-    def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
+    def __init__(self, vocab_size, hidden_size=200,
+                 rnn=None, embedding_dropout=None, output_dropout=None,
                  projection_lambda=0.15, weight_tying=True):
         super(PressAndWolfModel, self).__init__(
-            vocab_size, hidden_size, num_layers, dropout)
+            vocab_size, hidden_size, rnn, embedding_dropout, output_dropout
+        )
+
         if weight_tying:
             # Linear.weight is transposed, so this will just work
             self.decoder.weight = self.encoder.weight
@@ -81,15 +176,10 @@ class PressAndWolfModel(CustomZarembaModel):
         else:
             self.projection = None
 
-    def forward(self, input, hidden):
-        emb = self.encoder(input)
-        # self.rnn.flatten_parameters()
-        output, hidden = self.rnn(emb, hidden)
-        projected = self.projection(output) if self.projection else output
-        decoded = self.decoder(
-            projected.view(projected.size(0) * projected.size(1),
-                           projected.size(2)))
-        return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden
+    def _rnn(self, emb, hidden):
+        """Also performs the projection."""
+        output = super(PressAndWolfModel, self)._rnn(emb, hidden)
+        return self.projection(output) if self.projection else output
 
     def loss_regularizer(self):
         """The regularizing term (if any) that is added to the loss."""
@@ -106,9 +196,11 @@ class SmallPressAndWolfModel(PressAndWolfModel):
 
 class MediumPressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
-        super(MediumPressAndWolfModel, self).__init__(vocab_size, 650, 2, 0.5)
+        super(MediumPressAndWolfModel, self).__init__(
+            vocab_size, 650, 2, 0.5, output_dropout=0.5)
 
 
 class LargePressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
-        super(LargePressAndWolfModel, self).__init__(vocab_size, 1500, 2, 0.65)
+        super(LargePressAndWolfModel, self).__init__(
+            vocab_size, 1500, 2, 0.65, output_dropout=0.65)
