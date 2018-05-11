@@ -1,0 +1,35 @@
+{
+    "model": {
+        "class": "GenericRnnModel",
+        "kwargs": {
+            "hidden_size": 1150,
+            "num_layers": 3,
+            "dropout": "0.3s",
+            "cell_data": {
+                "class": "MerityLstmCell"
+            },
+            "embedding_dropout": "0.1s",
+            "output_dropout": "0.4s"
+        }
+    },
+    "optimizer": {
+        "class": "torch.optim.SGD",
+        "args": [1.0]
+    },
+    "initializer": {
+        "function": "uniform",
+        "kwargs": {"a": -0.1, "b": 0.1}
+    },
+    "lr_scheduler": {
+        "class": "ZarembaScheduleLR",
+        "kwargs": {
+            "lr_decay": 0.83,
+            "decay_delay": 6
+        }
+    },
+    "num_epochs": 750,
+    "batch_size": 40,
+    "num_steps": 35,
+    "grad_clip": 5
+}
+
