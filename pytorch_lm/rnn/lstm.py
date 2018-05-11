@@ -242,6 +242,36 @@ class SemeniutaLstmCell(LstmCell):
         return h_t, c_t
 
 
+class MerityLstmCell(LstmCell):
+    """
+    Following Merity et al. (2018): uses DropConnect instead of Dropout, on
+    the hidden-to-hidden matrices. The parameter of the DropConnect probability
+    is still called dropout, unfortunately.
+    """
+    def __init__(self, input_size, hidden_size, dropout=0, input_do=0):
+        self.input_do = input_do
+        super(MerityLstmCell, self).__init__(input_size, hidden_size, dropout)
+
+    def create_dropouts(self):
+        return [StatefulDropout(self.dropout), StatefulDropout(self.input_do)]
+
+    def forward(self, input, hidden):
+        h_t, c_t = hidden
+
+        ifgo = self.do[1](input).matmul(self.w_i) + h_t.matmul(self.do[0](self.w_h))
+        ifgo += self.b
+
+        i, f, g, o = ifgo.chunk(4, 1)
+        i = torch.sigmoid(i)
+        f = torch.sigmoid(f)
+        g = torch.tanh(g)
+        o = torch.sigmoid(o)
+        c_t = f * c_t + i * self.do[0](g)
+        h_t = o * torch.tanh(c_t)
+
+        return h_t, c_t
+
+
 class Lstm(nn.Module):
     """
     Several layers of LstmCells. Input is batch_size x num_steps x input_size,
