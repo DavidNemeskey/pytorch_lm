@@ -271,19 +271,18 @@ class Lstm(nn.Module):
     the final output).
     """
     def __init__(self, input_size, hidden_size, num_layers, dropout=0,
-                 input_dropout=0, layer_dropout=0, output_dropout=0,
-                 cell_data=None):
+                 input_dropout=0, layer_dropout=0, cell_data=None):
         """
         Arguments:
         - input_size: the size of the input vector
         - hidden_size: the size of the hidden vector
         - num_layers: the number of layers
-        - dropout: the dropout used before, between, and after the cells. The
+        - dropout: the dropout used before, and between, the cells (output
+                   dropout is handled in the model). The
                    individual parameters (see below) take precedence: if one of
                    them is not 0, the "umbrella" dropout argument is ignored
         - input_dropout: the dropout used on the input of the first layer
         - layer_dropout: the dropout used between layers
-        - output_dropout: the dropout used after the final layer
         - cell_data: the type of cell to use, with its __init__ arguments
         """
         super(Lstm, self).__init__()
@@ -291,14 +290,12 @@ class Lstm(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
 
-        if input_dropout or layer_dropout or output_dropout:
+        if input_dropout or layer_dropout:
             self.input_dropout = input_dropout
             self.layer_dropout = layer_dropout
-            self.output_dropout = output_dropout
         else:
             self.input_dropout = dropout
             self.layer_dropout = dropout
-            self.output_dropout = dropout
 
         if not cell_data:
             cell_data = {'class': 'ZarembaLstmCell', 'args': [], 'kwargs': {}}
