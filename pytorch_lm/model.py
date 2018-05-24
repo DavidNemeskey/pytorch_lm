@@ -20,9 +20,14 @@ class LMModel(nn.Module):
 
 class GenericRnnModel(LMModel):
     """
-    Implements a generic embedding - RNN - softmax LM. The first few
-    parameters are self-explanatory. The rest are:
+    Implements a generic embedding - RNN - softmax LM.
 
+    Arguments:
+    - vocab_size: vocab size
+    - embedding_size: the size of the embedding (and the softmax). If either
+                      this or the next parameter is 0, they are taken to be
+                      equal
+    - hidden_size: the number of units in the hidden LSTM layers. See above
     - rnn: a dictionary:
     {
       "class": the RNN subclass
@@ -33,11 +38,14 @@ class GenericRnnModel(LMModel):
       (a dropout string)
     - output_dropout: the dropout applied on the RNN output.
     """
-    def __init__(self, vocab_size, hidden_size=200,
+    def __init__(self, vocab_size, embedding_size=0, hidden_size=0,
                  rnn=None, embedding_dropout=None, output_dropout=None):
         super(GenericRnnModel, self).__init__()
         self.vocab_size = vocab_size
-        self.hidden_size = hidden_size
+        self.hidden_size = hidden_size if hidden_size else embedding_size
+        self.embedding_size = embedding_size if embedding_size else self.hidden_size
+        if not (self.hidden_size or self.embedding_size):
+            raise ValueError('embedding_size and hidden_size cannot be both 0')
 
         # Embedding & output dropouts
         self.emb_do = create_dropout(embedding_dropout, True)
@@ -46,7 +54,7 @@ class GenericRnnModel(LMModel):
         self.encoder = nn.Embedding(vocab_size, hidden_size)
         self.rnn = create_object(
             rnn, base_module='pytorch_lm.rnn',
-            args=[hidden_size, hidden_size]
+            args=[self.embedding_size, self.hidden_size]
         )
         self.decoder = nn.Linear(hidden_size, vocab_size)
 
@@ -101,9 +109,13 @@ class GenericRnnModel(LMModel):
 
 class GenericLstmModel(GenericRnnModel):
     """
-    Implements a generic embedding - LSTM - softmax LM. The first few
-    parameters are self-explanatory. The rest are:
-
+    Implements a generic embedding - LSTM - softmax LM.
+    Arguments:
+    - vocab_size: vocab size
+    - embedding_size: the size of the embedding (and the softmax). If either
+                      this or the next parameter is 0, they are taken to be
+                      equal
+    - hidden_size: the number of units in the hidden LSTM layers. See above
     - dropout: the dropout probability between LSTM layers (float)
     - cell_data: a dictionary:
     {
@@ -115,7 +127,8 @@ class GenericLstmModel(GenericRnnModel):
       (a dropout string)
     - output_dropout: the dropout applied on the RNN output.
     """
-    def __init__(self, vocab_size, hidden_size=200, num_layers=2, dropout=0.5,
+    def __init__(self, vocab_size, embedding_size=0, hidden_size=0,
+                 num_layers=2, dropout=0.5,
                  cell_data=None, embedding_dropout=None, output_dropout=None):
         rnn_setup = {
             'class': 'Lstm',
@@ -126,7 +139,7 @@ class GenericLstmModel(GenericRnnModel):
             }
         }
         super(GenericLstmModel, self).__init__(
-            vocab_size, hidden_size, rnn_setup,
+            vocab_size, embedding_size, hidden_size, rnn_setup,
             embedding_dropout, output_dropout
         )
 
