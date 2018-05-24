@@ -305,7 +305,8 @@ class Lstm(nn.Module):
 
         self.layers = [create_object(cell_data, base_module='pytorch_lm.rnn',
                                      args=[input_size if not l else hidden_size,
-                                           hidden_size, dropout])
+                                           hidden_size,
+                                           input_dropout if not l else layer_dropout])
                        for l in range(num_layers)]
         for l, layer in enumerate(self.layers):
             self.add_module('Layer_{}'.format(l), layer)
