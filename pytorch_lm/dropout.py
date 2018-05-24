@@ -8,6 +8,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+def split_dropout(do_value):
+    """
+    Handles both string and number dropout values, with or without the "s"
+    suffix (see create_dropout).
+    """
+    do_str = str(do_value)
+    if do_str.endswith('s'):
+        s = True
+        do_str = do_str[:-1]
+    else:
+        s = False
+    return float(do_str), s
+
+
 class Dropout(nn.Module):
     """Base class for the two dropout variants."""
     def __init__(self, p=0):
@@ -22,6 +36,7 @@ class Dropout(nn.Module):
             must be called by hand. This is useful for per-sequence masks.
         """
         super(Dropout, self).__init__()
+        p, _ = split_dropout(p)
         if p < 0 or 1 < p:
             raise ValueError('Dropout: p must be between 0 and 1')
         self.p = p
@@ -103,15 +118,14 @@ def create_dropout(do_value, default_none=False):
     method returns a string of the right format). The format is "<p>(s)", where
     <p> is the drop (not keep!) probability, and the s suffix is optional and
     marks per-sequence (stateful) dropout.
+
+    If do_value evaluates to False, the return value depends on the default_none
+    argument. If it is False (the default), a NoDropout object is returned;
+    otherwise, None.
     """
     if do_value:
-        do_str = str(do_value)
-        if do_str.endswith('s'):
-            cls = StatefulDropout
-            do_str = do_str[:-1]
-        else:
-            cls = StatelessDropout
-        p = float(do_str)
+        p, s = split_dropout(do_value)
+        cls = StatefulDropout if s else StatelessDropout
         if p > 0:
             return cls(p)
     return NoDropout() if not default_none else None

@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
-from pytorch_lm.dropout import StatelessDropout, StatefulDropout
+from pytorch_lm.dropout import StatefulDropout, create_dropout
 from pytorch_lm.utils.config import create_object
 
 
@@ -25,7 +25,11 @@ class LstmCell(nn.Module):
             - input_size: the number of input features
             - hidden_size: the number of cells
             - dropout: the dropout value (and type) to use. The place where
-                       dropout is applied depends on the subclass.
+                       dropout is applied depends on the subclass. Note that
+                       this is usually the input dropout; if different dropout
+                       probabilities are needed for various connections, the
+                       cell should define other arguments, such as
+                       recurrent_dropout
             - forget_bias: the value of the forget bias
         """
         super(LstmCell, self).__init__()
@@ -56,9 +60,10 @@ class LstmCell(nn.Module):
     def create_dropouts(self):
         """
         Creates the ``list`` of :class:`Dropout` objects used by the cell.
-        This is one method to be implemented.
+        This is one method to be implemented; this default implementation
+        returns a single Dropout object created with create_dropout().
         """
-        raise NotImplementedError()
+        return [create_dropout(self.dropout)]
 
     def forward(self, input, hidden):
         """Of course, forward must be implemented in subclasses."""
@@ -109,9 +114,6 @@ class LstmCell(nn.Module):
 
 class ZarembaLstmCell(LstmCell):
     """Following Zaremba et al. (2014), dropout is applied on the input tensor."""
-    def create_dropouts(self):
-        return [StatelessDropout(self.dropout)]
-
     def forward(self, input, hidden):
         h_t, c_t = hidden
 
@@ -134,9 +136,6 @@ class MoonLstmCell(LstmCell):
     Following Moon et al. (2015), dropout (with a per-sequence mask) is applied
     on c_t. Note: this sucks.
     """
-    def create_dropouts(self):
-        return [StatefulDropout(self.dropout)]
-
     def forward(self, input, hidden):
         h_t, c_t = hidden
 
@@ -212,19 +211,6 @@ class UntiedGalLstmCell(LstmCell):
 
 class SemeniutaLstmCell(LstmCell):
     """Following Semeniuta et al. (2016), dropout is applied on g_t."""
-    def __init__(self, input_size, hidden_size, dropout=0, per_sequence=False,
-                 input_do=0):
-        self.per_sequence = per_sequence
-        self.input_do = input_do
-        super(SemeniutaLstmCell, self).__init__(input_size, hidden_size, dropout)
-
-    def create_dropouts(self):
-        if self.per_sequence:
-            update_do = StatefulDropout(self.dropout)
-        else:
-            update_do = StatelessDropout(self.dropout)
-        return [update_do, StatelessDropout(self.input_do)]
-
     def forward(self, input, hidden):
         h_t, c_t = hidden
 
@@ -248,12 +234,14 @@ class MerityLstmCell(LstmCell):
     the hidden-to-hidden matrices. The parameter of the DropConnect probability
     is still called dropout, unfortunately.
     """
-    def __init__(self, input_size, hidden_size, dropout=0, input_do=0):
-        self.input_do = input_do
-        super(MerityLstmCell, self).__init__(input_size, hidden_size, dropout)
+    def __init__(self, input_size, hidden_size, dropout=0, dropconnect=0,
+                 forget_bias=None):
+        self.dropconnect = dropconnect
+        super(MerityLstmCell, self).__init__(
+            input_size, hidden_size, dropout, forget_bias)
 
     def create_dropouts(self):
-        return [StatefulDropout(self.dropout), StatefulDropout(self.input_do)]
+        return [StatefulDropout(self.dropconnect), StatefulDropout(self.dropout)]
 
     def forward(self, input, hidden):
         h_t, c_t = hidden
@@ -266,7 +254,7 @@ class MerityLstmCell(LstmCell):
         f = torch.sigmoid(f)
         g = torch.tanh(g)
         o = torch.sigmoid(o)
-        c_t = f * c_t + i * self.do[0](g)
+        c_t = f * c_t + i * g
         h_t = o * torch.tanh(c_t)
 
         return h_t, c_t
@@ -283,11 +271,34 @@ class Lstm(nn.Module):
     the final output).
     """
     def __init__(self, input_size, hidden_size, num_layers, dropout=0,
+                 input_dropout=0, layer_dropout=0, output_dropout=0,
                  cell_data=None):
+        """
+        Arguments:
+        - input_size: the size of the input vector
+        - hidden_size: the size of the hidden vector
+        - num_layers: the number of layers
+        - dropout: the dropout used before, between, and after the cells. The
+                   individual parameters (see below) take precedence: if one of
+                   them is not 0, the "umbrella" dropout argument is ignored
+        - input_dropout: the dropout used on the input of the first layer
+        - layer_dropout: the dropout used between layers
+        - output_dropout: the dropout used after the final layer
+        - cell_data: the type of cell to use, with its __init__ arguments
+        """
         super(Lstm, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+
+        if input_dropout or layer_dropout or output_dropout:
+            self.input_dropout = input_dropout
+            self.layer_dropout = layer_dropout
+            self.output_dropout = output_dropout
+        else:
+            self.input_dropout = dropout
+            self.layer_dropout = dropout
+            self.output_dropout = dropout
 
         if not cell_data:
             cell_data = {'class': 'ZarembaLstmCell', 'args': [], 'kwargs': {}}
