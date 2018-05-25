@@ -13,4 +13,4 @@ def getall(d, keys, default=None):
 
 def public_dict(obj):
     """Same as obj.__dict__, but without private fields."""
-    return {k: v for k, v in obj.__dict__ if not k.startswith('_')}
+    return {k: v for k, v in obj.__dict__.items() if not k.startswith('_')}
