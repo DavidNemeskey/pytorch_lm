@@ -9,3 +9,8 @@ def getall(d, keys, default=None):
     values extracted from dict.
     """
     return [d.get(key, default) for key in keys]
+
+
+def public_dict(obj):
+    """Same as obj.__dict__, but without private fields."""
+    return {k: v for k, v in obj.__dict__ if not k.startswith('_')}

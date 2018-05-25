@@ -9,6 +9,7 @@ from torch.autograd import Variable
 
 from pytorch_lm.dropout import StatefulDropout, create_dropout
 from pytorch_lm.utils.config import create_object
+from pytorch_lm.utils.lang import public_dict
 
 
 class LstmCell(nn.Module):
@@ -112,7 +113,7 @@ class LstmCell(nn.Module):
         return ret
 
     def __repr__(self):
-        return '{}({})'.format(self.__class__, self.__dict__)
+        return '{}({})'.format(self.__class__.__name__, public_dict(self))
 
 
 class ZarembaLstmCell(LstmCell):
@@ -356,4 +357,4 @@ class Lstm(nn.Module):
             layer.load_parameters(part_dict, key)
 
     def __repr__(self):
-        return '{}({})'.format(self.__class__, self.__dict__)
+        return '{}({})'.format(self.__class__.__name__, public_dict(self))

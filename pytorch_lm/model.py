@@ -3,6 +3,7 @@ import torch.nn as nn
 
 from pytorch_lm.dropout import create_dropout
 from pytorch_lm.utils.config import create_object
+from pytorch_lm.utils.lang import public_dict
 
 
 class LMModel(nn.Module):
@@ -107,7 +108,7 @@ class GenericRnnModel(LMModel):
         return self.rnn.init_hidden(batch_size)
 
     def __repr__(self):
-        return '{}({})'.format(self.__class__, self.__dict__)
+        return '{}({})'.format(self.__class__.__name__, public_dict(self))
 
 
 class GenericLstmModel(GenericRnnModel):

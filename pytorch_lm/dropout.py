@@ -63,7 +63,7 @@ class Dropout(nn.Module):
             self.__class__.__name__))
 
     def __repr__(self):
-        return '{}({})'.format(self.__class__, self.p)
+        return '{}({})'.format(self.__class__.__name__, self.p)
 
 
 class StatelessDropout(Dropout):
