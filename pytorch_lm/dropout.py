@@ -62,6 +62,9 @@ class Dropout(nn.Module):
         raise NotImplementedError('forward not implemented in {}'.format(
             self.__class__.__name__))
 
+    def __repr__(self):
+        return '{}({})'.format(self.__class__, self.p)
+
 
 class StatelessDropout(Dropout):
     """The regular stateless dropout."""

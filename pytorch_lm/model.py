@@ -106,6 +106,9 @@ class GenericRnnModel(LMModel):
     def init_hidden(self, batch_size):
         return self.rnn.init_hidden(batch_size)
 
+    def __repr__(self):
+        return '{}({})'.format(self.__class__, self.__dict__)
+
 
 class GenericLstmModel(GenericRnnModel):
     """

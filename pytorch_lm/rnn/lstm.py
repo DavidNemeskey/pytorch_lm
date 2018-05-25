@@ -111,6 +111,9 @@ class LstmCell(nn.Module):
                    Variable(torch.from_numpy(np_arrays[1]).type(self.w_i.type())))
         return ret
 
+    def __repr__(self):
+        return '{}({})'.format(self.__class__, self.__dict__)
+
 
 class ZarembaLstmCell(LstmCell):
     """Following Zaremba et al. (2014), dropout is applied on the input tensor."""
@@ -351,3 +354,6 @@ class Lstm(nn.Module):
             key = prefix + 'Layer_' + str(l) + '/'
             part_dict = {k: v for k, v in data_dict.items() if k.startswith(key)}
             layer.load_parameters(part_dict, key)
+
+    def __repr__(self):
+        return '{}({})'.format(self.__class__, self.__dict__)
