@@ -181,7 +181,7 @@ def main():
         traind, ['model', 'optimizer', 'initializer',
                  'bias_initializer', 'lr_scheduler'])
 
-    logging.info('Model object created: {}'.format(model))
+    logger.info('Model object created: {}'.format(model))
 
     initialize_model(model, initializer)
 
