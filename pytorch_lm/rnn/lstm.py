@@ -304,14 +304,17 @@ class Lstm(nn.Module):
         if not cell_data:
             cell_data = {'class': 'ZarembaLstmCell', 'args': [], 'kwargs': {}}
 
-        self.layers = [
-            create_object(
-                cell_data, base_module='pytorch_lm.rnn',
-                args=[input_size if not l else hidden_size, hidden_size,
-                      self.input_dropout if not l else self.layer_dropout]
+        self.layers = []
+        for l in range(num_layers):
+            in_size = input_size if not l else hidden_size
+            out_size = hidden_size if l + 1 != num_layers else input_size
+            do = self.input_dropout if not l else self.layer_dropout
+            self.layers.append(
+                create_object(
+                    cell_data, base_module='pytorch_lm.rnn',
+                    args=[in_size, out_size, do]
+                )
             )
-            for l in range(num_layers)
-        ]
         for l, layer in enumerate(self.layers):
             self.add_module('Layer_{}'.format(l), layer)
 
