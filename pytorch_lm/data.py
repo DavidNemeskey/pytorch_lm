@@ -95,6 +95,18 @@ class LMData(object):
             data = data.cuda()
         return data
 
+    def _get_batches(self, num_steps, evaluation):
+        """
+        Does the actual splitting of the data into minibatches. Called by
+        get_batches().
+        """
+        # -1, because we need at least 2 items (input, output)
+        for i in range(0, self.data.size(1) - 1, num_steps):
+            seq_len = min(num_steps, self.data.size(1) - 1 - i)
+            data_chunk = self.data[:, i:i+seq_len].contiguous()
+            target_chunk = self.data[:, i+1:i+1+seq_len].contiguous()  # .view(-1))
+            yield data_chunk, target_chunk
+
     def get_batches(self, num_steps, evaluation=False):
         """
         get_minibatch iterates through the batchified data, returning a chunk of
@@ -113,11 +125,7 @@ class LMData(object):
         - evaluation: whether the minibatch will be used in evaluation (i.e. it
                       doesn't need gradients) or not
         """
-        # -1, because we need at least 2 items (input, output)
-        for i in range(0, self.data.size(1) - 1, num_steps):
-            seq_len = min(num_steps, self.data.size(1) - 1 - i)
-            data_chunk = self.data[:, i:i+seq_len].contiguous()
-            target_chunk = self.data[:, i+1:i+1+seq_len].contiguous()  # .view(-1))
+        for data_chunk, target_chunk in self._get_batches(num_steps, evaluation):
             # TODO can we no_grad target as well?
             if evaluation:
                 with torch.no_grad():
