@@ -52,12 +52,12 @@ class GenericRnnModel(LMModel):
         self.emb_do = create_dropout(embedding_dropout, True)
         self.out_do = create_dropout(output_dropout)
 
-        self.encoder = nn.Embedding(vocab_size, hidden_size)
+        self.encoder = nn.Embedding(vocab_size, embedding_size)
         self.rnn = create_object(
             rnn, base_module='pytorch_lm.rnn',
             args=[self.embedding_size, self.hidden_size]
         )
-        self.decoder = nn.Linear(hidden_size, vocab_size)
+        self.decoder = nn.Linear(embedding_size, vocab_size)
 
     # ----- OK, I am not sure this is the best one can come up with, but -----
     # ----- I really want to keep PressAndWolfModel as a separate class
