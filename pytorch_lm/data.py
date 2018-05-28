@@ -80,15 +80,22 @@ def get_batch(source, i, num_steps, evaluation=False):
     """
     get_batch subdivides the source data into chunks of length bptt.
     If source is equal to the example output of the batchify function, with
-    a bptt-limit of 2, we'd get the following two Variables for i = 0:
-    ┌ a b ┐ ┌ b c ┐
-    │ g h │ │ h i │
-    │ g n │ │ n o │
-    └ s t ┘ └ t u ┘
+    a bptt-limit of 3, we'd get the following two Variables for i = 0:
+    ┌ a b c ┐ ┌ b c d ┐
+    │ g h i │ │ h i j │
+    │ g n o │ │ n o p │
+    └ s t u ┘ └ t u v ┘
     Note that despite the name of the function, the subdivison of data is not
     done along the batch dimension (i.e. dimension 0), since that was handled
     by the batchify function. The chunks are along dimension 1, corresponding
     to the seq_len dimension in the Lstm class, but unlike the LSTM in Pytorch.
+
+    Arguments:
+    - source: the batchified data (text)
+    - i: 
+    - num_steps: the sequence length
+    - evaluation: whether the minibatch will be used in evaluation (i.e. it
+                  doesn't need gradients) or not
     """
     seq_len = min(num_steps, source.size(1) - 1 - i)
     # TODO can we no_grad target as well?

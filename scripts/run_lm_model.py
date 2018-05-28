@@ -6,6 +6,7 @@
 import argparse
 from functools import partial
 import math
+import random
 import time
 
 import torch
@@ -55,6 +56,19 @@ def parse_arguments():
     return parser.parse_args()
 
 
+def random_seq_len(num_steps, p, s):
+    """
+    Returns the variable sequence (BPTT) length a la Merity et al. (2018).
+
+    Arguments:
+    - num_steps: the default BPTT length
+    - p: the probability of _not_ halving the sequence length
+    - s: the standard deviation around the base sequence length
+    """
+    base_seq_len = num_steps if random.random() <= p else num_steps // 2
+    return random.gauss(base_seq_len, s)
+
+
 def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     optimizer, batch_size, num_steps, grad_clip = getall(
         config, ['optimizer', 'batch_size', 'num_steps', 'grad_clip'])
@@ -69,7 +83,9 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     hidden = model.init_hidden(batch_size)
 
     for batch, i in enumerate(range(0, data_len - 1, num_steps)):
-        data, targets = get_batch(train_data, i, num_steps)
+        # TODO rescale learning rate
+        seq_len = random_seq_len(num_steps)
+        data, targets = get_batch(train_data, i, seq_len)
 
         # def to_str(f):
         #     return corpus.dictionary.idx2word[f]
@@ -151,7 +167,9 @@ def main():
     global logger
     logger = setup_stream_logger(args.log_level)
 
-    torch.manual_seed(args.seed)
+    if args.seed:
+        torch.manual_seed(args.seed)
+        random.seed(args.seed)
 
     if torch.cuda.is_available():
         if not args.cuda:
