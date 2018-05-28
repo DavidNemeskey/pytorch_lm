@@ -85,9 +85,9 @@ class LMData(object):
         efficient batch processing.
         """
         # Work out how cleanly we can divide the dataset into bsz parts.
-        nbatch = (len(text) - 1) // self.batch_size
+        nbatch = len(text) // self.batch_size
         # Trim off any extra elements that wouldn't cleanly fit (remainders).
-        data = text[:nbatch * self.batch_size + 1]
+        data = text[:nbatch * self.batch_size]
         # Evenly divide the data across the bsz batches.
         data = data.reshape(self.batch_size, -1)
         data = torch.from_numpy(data).long().contiguous()
@@ -95,36 +95,34 @@ class LMData(object):
             data = data.cuda()
         return data
 
+    def get_batches(self, num_steps, evaluation=False):
+        """
+        get_minibatch iterates through the batchified data, returning a chunk of
+        length num_steps. Continuing the example from the batchify method, with
+        num_steps = 3, the following two Variables are returned on the first
+        call:
+        ┌ a b c ┐ ┌ b c d ┐
+        │ g h i │ │ h i j │
+        │ g n o │ │ n o p │
+        └ s t u ┘ └ t u v ┘
+        The chunks are along dimension 1, corresponding to the seq_len
+        dimension in the Lstm class, but unlike the LSTM in Pytorch.
 
-def get_batch(source, i, num_steps, evaluation=False):
-    """
-    get_batch subdivides the source data into chunks of length bptt.
-    If source is equal to the example output of the batchify function, with
-    a bptt-limit of 3, we'd get the following two Variables for i = 0:
-    ┌ a b c ┐ ┌ b c d ┐
-    │ g h i │ │ h i j │
-    │ g n o │ │ n o p │
-    └ s t u ┘ └ t u v ┘
-    Note that despite the name of the function, the subdivison of data is not
-    done along the batch dimension (i.e. dimension 0), since that was handled
-    by the batchify function. The chunks are along dimension 1, corresponding
-    to the seq_len dimension in the Lstm class, but unlike the LSTM in Pytorch.
-
-    Arguments:
-    - source: the batchified data (text)
-    - i: 
-    - num_steps: the sequence length
-    - evaluation: whether the minibatch will be used in evaluation (i.e. it
-                  doesn't need gradients) or not
-    """
-    seq_len = min(num_steps, source.size(1) - 1 - i)
-    # TODO can we no_grad target as well?
-    data_chunk = source[:, i:i+seq_len].contiguous()
-    target_chunk = source[:, i+1:i+1+seq_len].contiguous()  # .view(-1))
-    if evaluation:
-        with torch.no_grad():
-            data = Variable(data_chunk)
-    else:
-        data = Variable(data_chunk)
-    target = Variable(target_chunk)  # .view(-1))
-    return data, target
+        Arguments:
+        - num_steps: the sequence length
+        - evaluation: whether the minibatch will be used in evaluation (i.e. it
+                      doesn't need gradients) or not
+        """
+        # -1, because we need at least 2 items (input, output)
+        for i in range(0, self.data.size(1) - 1, num_steps):
+            seq_len = min(num_steps, self.data.size(1) - 1 - i)
+            data_chunk = self.data[:, i:i+seq_len].contiguous()
+            target_chunk = self.data[:, i+1:i+1+seq_len].contiguous()  # .view(-1))
+            # TODO can we no_grad target as well?
+            if evaluation:
+                with torch.no_grad():
+                    data = Variable(data_chunk)
+            else:
+                data = Variable(data_chunk)
+            target = Variable(target_chunk)  # .view(-1))
+            yield data, target

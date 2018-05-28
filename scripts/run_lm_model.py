@@ -12,7 +12,7 @@ import time
 import torch
 from torch.autograd import Variable
 
-from pytorch_lm.data import Corpus, batchify, get_batch
+from pytorch_lm.data import Corpus, LMData
 from pytorch_lm.loss import SequenceLoss
 from pytorch_lm.lr_schedule import lr_step_at_epoch_start
 from pytorch_lm.utils.config import read_config
@@ -79,13 +79,12 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     lr = optimizer.param_groups[0]['lr']
     total_loss = 0
     start_time = time.time()
-    data_len = train_data.size(1)
+    data_len = train_data.data.size(1)
     hidden = model.init_hidden(batch_size)
 
-    for batch, i in enumerate(range(0, data_len - 1, num_steps)):
+    for batch, (data, targets) in enumerate(train_data.get_batches(num_steps)):
         # TODO rescale learning rate
-        seq_len = random_seq_len(num_steps)
-        data, targets = get_batch(train_data, i, seq_len)
+        # seq_len = random_seq_len(num_steps)
 
         # def to_str(f):
         #     return corpus.dictionary.idx2word[f]
@@ -127,10 +126,10 @@ def evaluate(model, corpus, data_source, criterion, batch_size, num_steps):
     # Turn on evaluation mode which disables dropout.
     model.eval()
     total_loss = 0
-    data_len = data_source.size(1)
+    data_len = data_source.data.size(1)
     hidden = model.init_hidden(batch_size)
-    for i in range(0, data_len - 1, num_steps):
-        data, targets = get_batch(data_source, i, num_steps, evaluation=True)
+    # for i in range(0, data_len - 1, num_steps):
+    for data, targets in data_source.get_batches(num_steps, evaluation=True):
         output, hidden = model(data, hidden)
         cost = criterion(output, targets).data
         total_loss += cost
@@ -191,9 +190,9 @@ def main():
 
     config = read_config(args.config_file, vocab_size)
     traind, validd, testd = getall(config, ['train', 'valid', 'test'])
-    train_data = batchify(corpus.train, traind['batch_size'], args.cuda)
-    valid_data = batchify(corpus.valid, validd['batch_size'], args.cuda)
-    test_data = batchify(corpus.test, testd['batch_size'], args.cuda)
+    train_data = LMData(corpus.train, traind['batch_size'], args.cuda)
+    valid_data = LMData(corpus.valid, validd['batch_size'], args.cuda)
+    test_data = LMData(corpus.test, testd['batch_size'], args.cuda)
 
     model, optimizer, initializer, bias_initializer, lr_scheduler = getall(
         traind, ['model', 'optimizer', 'initializer',
