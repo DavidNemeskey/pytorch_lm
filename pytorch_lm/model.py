@@ -40,7 +40,8 @@ class GenericRnnModel(LMModel):
     - output_dropout: the dropout applied on the RNN output.
     """
     def __init__(self, vocab_size, embedding_size=0, hidden_size=0,
-                 rnn=None, embedding_dropout=None, output_dropout=None):
+                 rnn=None, embedding_dropout=None, output_dropout=None,
+                 weight_tying=False):
         super(GenericRnnModel, self).__init__()
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size if hidden_size else embedding_size
@@ -58,6 +59,10 @@ class GenericRnnModel(LMModel):
             args=[self.embedding_size, self.hidden_size]
         )
         self.decoder = nn.Linear(embedding_size, vocab_size)
+
+        if weight_tying:
+            # Linear.weight is transposed, so this will just work
+            self.decoder.weight = self.encoder.weight
 
     # ----- OK, I am not sure this is the best one can come up with, but -----
     # ----- I really want to keep PressAndWolfModel as a separate class
@@ -178,18 +183,16 @@ class PressAndWolfModel(GenericRnnModel):
     The default is weight tying and projection with lambda = 0.15, as in the
     paper.
     """
-    def __init__(self, vocab_size, hidden_size=200,
+    def __init__(self, vocab_size, embedding_size=0, hidden_size=0,
                  rnn=None, embedding_dropout=None, output_dropout=None,
-                 projection_lambda=0.15, weight_tying=True):
+                 weight_tying=True, projection_lambda=0.15):
         super(PressAndWolfModel, self).__init__(
-            vocab_size, hidden_size, rnn, embedding_dropout, output_dropout
+            vocab_size, embedding_size, hidden_size, rnn,
+            embedding_dropout, output_dropout, weight_tying
         )
 
-        if weight_tying:
-            # Linear.weight is transposed, so this will just work
-            self.decoder.weight = self.encoder.weight
         if projection_lambda:
-            self.projection = nn.Linear(hidden_size, hidden_size, bias=False)
+            self.projection = nn.Linear(embedding_size, embedding_size, bias=False)
             self.projection_lambda = projection_lambda
         else:
             self.projection = None
@@ -209,16 +212,17 @@ class PressAndWolfModel(GenericRnnModel):
 
 class SmallPressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
-        super(SmallPressAndWolfModel, self).__init__(vocab_size, 200, 2, 0)
+        super(SmallPressAndWolfModel, self).__init__(
+            vocab_size, 200, 200, 2, 0)
 
 
 class MediumPressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
         super(MediumPressAndWolfModel, self).__init__(
-            vocab_size, 650, 2, 0.5, output_dropout=0.5)
+            vocab_size, 650, 650, 2, 0.5, output_dropout=0.5)
 
 
 class LargePressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
         super(LargePressAndWolfModel, self).__init__(
-            vocab_size, 1500, 2, 0.65, output_dropout=0.65)
+            vocab_size, 1500, 1500, 2, 0.65, output_dropout=0.65)
