@@ -28,6 +28,7 @@ class Dictionary(object):
 
 
 class Corpus(object):
+    """Loads the whole training (i.e. inc. valid, eval) corpus into memory."""
     def __init__(self, path, shuffle_train=True):
         self.dictionary = Dictionary()
         self.train = self.tokenize(os.path.join(path, 'train.txt'), shuffle_train)
@@ -51,29 +52,48 @@ class Corpus(object):
         return np.array([wid for sentence in text for wid in sentence])
 
 
-def batchify(data, bsz, cuda):
+class LMData(object):
     """
-    Starting from sequential data, batchify arranges the dataset into rows.
-    For instance, with the alphabet as the sequence and batch size 4, we'd get
-    ┌ a b c d e f ┐
-    │ g h i j k l │
-    │ m n o p q r │
-    │ s t u v w x ┘.
-    These rows are treated as independent by the model, which means that the
-    dependence of e. g. 'g' on 'f' can not be learned, but allows more efficient
-    batch processing.
+    Takes a Corpus and creates (batched) LM training data from it. This class
+    is Pytorch-specific.
     """
-    # Work out how cleanly we can divide the dataset into bsz parts.
-    nbatch = len(data) // bsz
-    rbatch = 20 * ((nbatch - 1) // 20) + 1
-    # Trim off any extra elements that wouldn't cleanly fit (remainders).
-    data = data[:rbatch * bsz]
-    # Evenly divide the data across the bsz batches.
-    data = data.reshape(bsz, -1)
-    data = torch.from_numpy(data).long().contiguous()
-    if cuda:
-        data = data.cuda()
-    return data
+    def __init__(self, text, batch_size, cuda):
+        """
+        Batchifies text.
+
+        Arguments:
+        - text: text which has already been tokenized, and words
+                converted to int ids
+        - batch_size: the batch size
+        - cuda: whether the tensors should be created on the GPU or not
+        """
+        self.batch_size = batch_size
+        self.cuda = cuda
+        self.data = self.batchify(text)
+
+    def batchify(self, text):
+        """
+        Starting from sequential data, batchify arranges the dataset into rows.
+        For instance, with the alphabet as the sequence and batch size 4, we'd
+        get
+        ┌ a b c d e f ┐
+        │ g h i j k l │
+        │ m n o p q r │
+        │ s t u v w x ┘.
+        These rows are treated as independent by the model, which means that
+        the dependence of e. g. 'g' on 'f' can not be learned, but allows more
+        efficient batch processing.
+        """
+        # Work out how cleanly we can divide the dataset into bsz parts.
+        nbatch = (len(text) - 1) // self.batch_size
+        # Trim off any extra elements that wouldn't cleanly fit (remainders).
+        data = text[:nbatch * self.batch_size + 1]
+        # Evenly divide the data across the bsz batches.
+        data = data.reshape(self.batch_size, -1)
+        data = torch.from_numpy(data).long().contiguous()
+        if self.cuda:
+            data = data.cuda()
+        return data
 
 
 def get_batch(source, i, num_steps, evaluation=False):
