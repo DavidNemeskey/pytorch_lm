@@ -7,6 +7,7 @@ import json
 import os
 from pkg_resources import resource_exists, resource_filename
 
+from pytorch_lm.bptt import create_num_steps
 from pytorch_lm.lr_schedule import ConstantLR
 
 
@@ -143,4 +144,12 @@ def read_config(config_file, vocab_size):
                                               args=[train['optimizer']])
     else:
         train['lr_scheduler'] = ConstantLR(train['optimizer'])
-    return ({'train': train, 'valid': valid, 'test': test})
+
+    full_config = {'train': train, 'valid': valid, 'test': test}
+
+    # Initialization of stuff in train, valid and test
+    for sub_config in full_config.values():
+        if 'num_steps' in sub_config:
+            sub_config['num_steps'] = create_num_steps(sub_config['num_steps'])
+
+    return full_config
