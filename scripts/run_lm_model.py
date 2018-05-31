@@ -56,19 +56,6 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def random_seq_len(num_steps, p, s):
-    """
-    Returns the variable sequence (BPTT) length a la Merity et al. (2018).
-
-    Arguments:
-    - num_steps: the default BPTT length
-    - p: the probability of _not_ halving the sequence length
-    - s: the standard deviation around the base sequence length
-    """
-    base_seq_len = num_steps if random.random() <= p else num_steps // 2
-    return random.gauss(base_seq_len, s)
-
-
 def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     optimizer, batch_size, num_steps, grad_clip = getall(
         config, ['optimizer', 'batch_size', 'num_steps', 'grad_clip'])
@@ -82,17 +69,20 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     data_len = train_data.data.size(1)
     hidden = model.init_hidden(batch_size)
 
-    for batch, (data, targets) in enumerate(train_data.get_batches(num_steps)):
-        # TODO rescale learning rate
-        # seq_len = random_seq_len(num_steps)
-
+    for batch, (data, targets, lr_ratio) in enumerate(train_data.get_batches(num_steps)):
         # def to_str(f):
         #     return corpus.dictionary.idx2word[f]
 
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
+
+        # TODO encapsulate this somewhere
+        # For random BPTT length
+        optimizer.param_groups[0]['lr'] = lr * lr_ratio
+
         hidden = repackage_hidden(hidden)
         model.zero_grad()
+
         output, hidden = model(data, hidden)
         loss = criterion(output, targets) + model.loss_regularizer()
         loss.backward()
@@ -106,6 +96,9 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
         optimizer.step()
         # for name, p in model.named_parameters():
         #     p.data.add_(-1 * lr, p.grad.data)
+
+        # For random BPTT length
+        optimizer.param_groups[0]['lr'] = lr
 
         total_loss += loss.data / num_steps
 

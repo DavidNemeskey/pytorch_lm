@@ -121,11 +121,12 @@ class LMData(object):
         dimension in the Lstm class, but unlike the LSTM in Pytorch.
 
         Arguments:
-        - num_steps: the sequence length
+        - num_steps: the BPTT sequencer object
         - evaluation: whether the minibatch will be used in evaluation (i.e. it
                       doesn't need gradients) or not
         """
-        for data_chunk, target_chunk in self._get_batches(num_steps, evaluation):
+        seq_len, lr_ratio = num_steps.num_steps()
+        for data_chunk, target_chunk in self._get_batches(seq_len, evaluation):
             # TODO can we no_grad target as well?
             if evaluation:
                 with torch.no_grad():
@@ -133,4 +134,4 @@ class LMData(object):
             else:
                 data = Variable(data_chunk)
             target = Variable(target_chunk)  # .view(-1))
-            yield data, target
+            yield data, target, lr_ratio

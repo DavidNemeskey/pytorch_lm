@@ -3,18 +3,31 @@
 
 """BPTT (length) related classes."""
 
+from abc import ABC, abstractmethod
 import random
 
 from pytorch_lm.utils.config import create_object
 
 
-class NumSteps(object):
-    """The default behavior: just an int wrapper."""
+class NumSteps(ABC):
+    """
+    Object that can be queried to get the number of BPTT steps in an iteration.
+    """
     def __init__(self, num_steps):
         self.len = num_steps
 
+    @abstractmethod
     def num_steps(self):
-        return self.len
+        """
+        Returns a tuple: the number of steps, and the learning rate multiplier
+        (only relevant for RandomNumSteps).
+        """
+
+
+class FixNumSteps(NumSteps):
+    """The default behavior: just an int wrapper."""
+    def num_steps(self):
+        return self.len, 1
 
 
 class RandomNumSteps(NumSteps):
@@ -29,6 +42,7 @@ class RandomNumSteps(NumSteps):
         full_len = random.gauss(base_len, self.s)
         # Safeguard for the sequence being too short or long
         full_len = min(max(5, full_len), self.len + 10)
+        return full_len, full_len / self.len
 
 
 def create_num_steps(num_steps):
@@ -36,4 +50,4 @@ def create_num_steps(num_steps):
     if isinstance(num_steps, dict):
         return create_object(num_steps, base_module='pytorch_lm.bptt')
     else:
-        return NumSteps(int(num_steps))
+        return FixNumSteps(int(num_steps))
