@@ -199,7 +199,7 @@ class PressAndWolfModel(GenericRnnModel):
 
     def _rnn(self, emb, hidden):
         """Also performs the projection."""
-        output = super(PressAndWolfModel, self)._rnn(emb, hidden)
+        output, hidden = super(PressAndWolfModel, self)._rnn(emb, hidden)
         return self.projection(output) if self.projection else output
 
     def loss_regularizer(self):
