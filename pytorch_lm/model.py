@@ -226,3 +226,31 @@ class LargePressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
         super(LargePressAndWolfModel, self).__init__(
             vocab_size, 1500, 1500, 2, 0.65, output_dropout=0.65)
+
+
+class MerityModel(GenericRnnModel):
+    """
+    Most of tricks in "Regularizing and Optimizing LSTM Language Models"
+    (Merity et al. 2018) have been added to the generic models. However,
+    AR and TAR do warrant another model class.
+    """
+    def __init__(self, vocab_size, embedding_size=0, hidden_size=0,
+                 rnn=None, embedding_dropout=None, output_dropout=None,
+                 weight_tying=True, alpha=0, beta=0):
+        """The new parameters are alpha for AR and beta for TAR."""
+        super(MerityModel, self).__init__(
+            vocab_size, embedding_size, hidden_size, rnn,
+            embedding_dropout, output_dropout, weight_tying
+        )
+        self.alpha = alpha
+        self.beta = beta
+
+    def loss_regularizer(self):
+        """AR + TAR."""
+        if self.alpha:
+            pass
+        if self.beta:
+            pass
+            return self.projection.weight.norm() * self.projection_lambda
+        else:
+            return 0
