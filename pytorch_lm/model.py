@@ -251,7 +251,11 @@ class MerityModel(GenericRnnModel):
         self.loss_reg = 0
 
     def _rnn(self, emb, hidden):
-        """Runs the RNN on the embedded input."""
+        """
+        Runs the RNN on the embedded input. Also computes the regularization
+        loss (both AR and TAR are activation regularizers, so they can only be
+        computed while the data tensors are available.
+        """
         raw_output, hidden = self.rnn(emb, hidden)
         self.loss_reg = 0
         if self.beta:
