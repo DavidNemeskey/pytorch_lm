@@ -15,7 +15,11 @@ class LMModel(nn.Module):
                 self.__class__.__name__))
 
     def loss_regularizer(self):
-        """The regularizing term (if any) that is added to the loss."""
+        """
+        The regularizing term (if any) that is added to the loss. This function
+        may be stateful, i.e. the model might store references to the current
+        batch in its inner states to compute the regularizing term.
+        """
         return 0
 
 
@@ -244,13 +248,21 @@ class MerityModel(GenericRnnModel):
         )
         self.alpha = alpha
         self.beta = beta
+        self.loss_reg = 0
+
+    def _rnn(self, emb, hidden):
+        """Runs the RNN on the embedded input."""
+        raw_output, hidden = self.rnn(emb, hidden)
+        self.loss_reg = 0
+        if self.beta:
+            self.loss_reg += self.beta * (
+                raw_output[:, 1:] - raw_output[:, :-1]).pow(2).mean()
+        self.out_do.reset_noise()
+        output = self.out_do(raw_output)
+        if self.alpha:
+            self.loss_reg += self.alpha * output.pow(2).mean()
+        return output, hidden
 
     def loss_regularizer(self):
         """AR + TAR."""
-        if self.alpha:
-            pass
-        if self.beta:
-            pass
-            return self.projection.weight.norm() * self.projection_lambda
-        else:
-            return 0
+        return self.loss_reg
