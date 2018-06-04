@@ -7,8 +7,6 @@ import json
 import os
 from pkg_resources import resource_exists, resource_filename
 
-from pytorch_lm.lr_schedule import ConstantLR
-
 
 def get_config_file(config_file):
     """

@@ -5,6 +5,7 @@
 
 import argparse
 from functools import partial
+import json
 import math
 import random
 import time
@@ -13,10 +14,11 @@ import torch
 from torch.autograd import Variable
 
 from pytorch_lm.bptt import create_num_steps
+from pytorch_lm.utils.config import create_object, create_function
+from pytorch_lm.utils.config import get_config_file
 from pytorch_lm.data import Corpus, LMData
 from pytorch_lm.loss import SequenceLoss
-from pytorch_lm.lr_schedule import lr_step_at_epoch_start
-from pytorch_lm.utils.config import read_config
+from pytorch_lm.lr_schedule import lr_step_at_epoch_start, ConstantLR
 from pytorch_lm.utils.lang import getall
 from pytorch_lm.utils.logging import setup_stream_logger
 
