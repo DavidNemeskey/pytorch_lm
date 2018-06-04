@@ -7,7 +7,6 @@ import json
 import os
 from pkg_resources import resource_exists, resource_filename
 
-from pytorch_lm.bptt import create_num_steps
 from pytorch_lm.lr_schedule import ConstantLR
 
 

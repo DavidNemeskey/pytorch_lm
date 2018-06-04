@@ -12,6 +12,7 @@ import time
 import torch
 from torch.autograd import Variable
 
+from pytorch_lm.bptt import create_num_steps
 from pytorch_lm.data import Corpus, LMData
 from pytorch_lm.loss import SequenceLoss
 from pytorch_lm.lr_schedule import lr_step_at_epoch_start
