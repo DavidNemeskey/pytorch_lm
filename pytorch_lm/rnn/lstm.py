@@ -334,7 +334,7 @@ class Lstm(nn.Module):
                 values = h_t
                 hiddens[l] = h_t, c_t
             outputs.append(values)
-        outputs = torch.stack(outputs, 1)
+        # outputs = torch.stack(outputs, 1)
         return outputs, hiddens
 
     def init_hidden(self, batch_size):

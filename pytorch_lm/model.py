@@ -100,10 +100,11 @@ class GenericRnnModel(LMModel):
     def _rnn(self, emb, hidden):
         """Runs the RNN on the embedded input."""
         # self.rnn.flatten_parameters()
+        # output is a list at this point
         output, hidden = self.rnn(emb, hidden)
         self.out_do.reset_noise()
-        output = self.out_do(output)
-        return output, hidden
+        output = [self.out_do(o) for o in output]
+        return torch.stack(output, 1), hidden
 
     def _decode(self, output):
         """Runs softmax (etc.) on the output of the (last) RNN layer."""
@@ -260,9 +261,10 @@ class MerityModel(GenericRnnModel):
         self.loss_reg = 0
         if self.beta:
             self.loss_reg += self.beta * (
-                raw_output[:, 1:] - raw_output[:, :-1]).pow(2).mean()
+                raw_output[1:] - raw_output[:-1]).pow(2).mean()
+                # raw_output[:, 1:] - raw_output[:, :-1]).pow(2).mean()
         self.out_do.reset_noise()
-        output = self.out_do(raw_output)
+        output = torch.stack([self.out_do(raw_o) for raw_o in raw_output], 1)
         if self.alpha:
             self.loss_reg += self.alpha * output.pow(2).mean()
         return output, hidden

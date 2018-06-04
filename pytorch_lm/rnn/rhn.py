@@ -78,7 +78,8 @@ class OfficialRhn(RhnBase):
 
             # Here the output is the current s
             outputs.append(s)
-        return torch.stack(outputs, 1), s
+        return outputs, s
+        # return torch.stack(outputs, 1), s
 
     @classmethod
     def initialize_t(cls, module, _):
