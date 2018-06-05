@@ -20,7 +20,7 @@ class LstmCell(nn.Module):
 
     As a reminder: input size is batch_size x input_features.
     """
-    def __init__(self, input_size, hidden_size, dropout=0, forget_bias=None):
+    def __init__(self, input_size, hidden_size, dropout=0, forget_bias=1):
         """
         Args:
             - input_size: the number of input features
@@ -31,7 +31,7 @@ class LstmCell(nn.Module):
                        probabilities are needed for various connections, the
                        cell should define other arguments, such as
                        recurrent_dropout
-            - forget_bias: the value of the forget bias
+            - forget_bias: the value of the forget bias [1]
         """
         super(LstmCell, self).__init__()
         self.input_size = input_size
@@ -239,7 +239,7 @@ class MerityLstmCell(LstmCell):
     is still called dropout, unfortunately.
     """
     def __init__(self, input_size, hidden_size, dropout=0, dropconnect=0,
-                 forget_bias=None):
+                 forget_bias=1):
         self.dropconnect = dropconnect
         super(MerityLstmCell, self).__init__(
             input_size, hidden_size, dropout, forget_bias)
