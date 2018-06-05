@@ -3,24 +3,24 @@
         "class": "MerityModel",
         "kwargs": {
             "hidden_size": 1150,
-	    "embedding_size": 400,
+            "embedding_size": 400,
             "num_layers": 3,
             "dropout": "0.3s",
-	    "rnn": {
-		"class": "Lstm",
-		"input_dropout": "0.4s",
-		"layer_dropout": "0.3s",
-		"cell_data": {
-		    "class": "MerityLstmCell",
-		    "kwargs": {
-			"dropconnect": "0.5s"
-		    }
-		}
-	    },
+            "rnn": {
+                "class": "Lstm",
+                "input_dropout": "0.4s",
+                "layer_dropout": "0.3s",
+                "cell_data": {
+                    "class": "MerityLstmCell",
+                    "kwargs": {
+                        "dropconnect": "0.5s"
+                    }
+                }
+            },
             "embedding_dropout": "0.1s",
             "output_dropout": "0.4s",
-	    "alpha": 2,
-	    "beta": 1
+            "alpha": 2,
+            "beta": 1
         }
     },
     "optimizer": {
@@ -41,12 +41,12 @@
     "num_epochs": 750,
     "batch_size": 40,
     "num_steps": {
-	"class": "RandomNumSteps",
-	"kwargs": {
-	    "num_steps": 70,
-	    "p": 0.95,
-	    "s": 5
-	}
+        "class": "RandomNumSteps",
+        "kwargs": {
+            "num_steps": 70,
+            "p": 0.95,
+            "s": 5
+        }
     },
     "grad_clip": 0.25
 }
