@@ -4,16 +4,17 @@
         "kwargs": {
             "hidden_size": 1150,
             "embedding_size": 400,
-            "num_layers": 3,
-            "dropout": "0.3s",
             "rnn": {
                 "class": "Lstm",
-                "input_dropout": "0.4s",
-                "layer_dropout": "0.3s",
-                "cell_data": {
-                    "class": "MerityLstmCell",
-                    "kwargs": {
-                        "dropconnect": "0.5s"
+                "kwargs": {
+                    "num_layers": 3,
+                    "input_dropout": "0.4s",
+                    "layer_dropout": "0.3s",
+                    "cell_data": {
+                        "class": "MerityLstmCell",
+                        "kwargs": {
+                            "dropconnect": "0.5s"
+                        }
                     }
                 }
             },
