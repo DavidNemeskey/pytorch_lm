@@ -258,13 +258,13 @@ class MerityModel(GenericRnnModel):
         computed while the data tensors are available.
         """
         raw_output, hidden = self.rnn(emb, hidden)
+        self.out_do.reset_noise()
+        output = torch.stack([self.out_do(raw_o) for raw_o in raw_output], 1)
+        raw_output = torch.stack(raw_output, 1)
         self.loss_reg = 0
         if self.beta:
             self.loss_reg += self.beta * (
-                raw_output[1:] - raw_output[:-1]).pow(2).mean()
-                # raw_output[:, 1:] - raw_output[:, :-1]).pow(2).mean()
-        self.out_do.reset_noise()
-        output = torch.stack([self.out_do(raw_o) for raw_o in raw_output], 1)
+                raw_output[:, 1:] - raw_output[:, :-1]).pow(2).mean()
         if self.alpha:
             self.loss_reg += self.alpha * output.pow(2).mean()
         return output, hidden

@@ -129,6 +129,7 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     hidden = model.init_hidden(batch_size)
 
     for batch, (data, targets, lr_ratio) in enumerate(train_data.get_batches(num_steps)):
+        seq_len = targets.size(1)
         # def to_str(f):
         #     return corpus.dictionary.idx2word[f]
 
@@ -159,7 +160,7 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
         # For random BPTT length
         optimizer.param_groups[0]['lr'] = lr
 
-        total_loss += loss.data / num_steps
+        total_loss += loss.data / seq_len
 
         if batch % log_interval == 0 and batch > 0:
             # cur_loss = total_loss[0] / log_interval
@@ -167,7 +168,7 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
             elapsed = time.time() - start_time
             logger.info('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | '
                         'ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(
-                            epoch, batch, data_len // num_steps, lr,
+                            epoch, batch, data_len // seq_len, lr,
                             elapsed * 1000 / log_interval, cur_loss,
                             math.exp(cur_loss)))
             total_loss = 0

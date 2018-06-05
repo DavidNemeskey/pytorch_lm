@@ -41,7 +41,7 @@ class RandomNumSteps(NumSteps):
         base_len = self.len if random.random() <= self.p else self.len // 2
         full_len = random.gauss(base_len, self.s)
         # Safeguard for the sequence being too short or long
-        full_len = min(max(5, full_len), self.len + 10)
+        full_len = round(min(max(5, full_len), self.len + 10))
         return full_len, full_len / self.len
 
 

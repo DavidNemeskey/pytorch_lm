@@ -4,7 +4,7 @@
 """Package for all the different RNN architectures."""
 
 from .lstm import Lstm, ZarembaLstmCell, MoonLstmCell, TiedGalLstmCell
-from .lstm import UntiedGalLstmCell, SemeniutaLstmCell
+from .lstm import UntiedGalLstmCell, SemeniutaLstmCell, MerityLstmCell
 from .rhn import Rhn, RhnLin, RhnLinTCTied, OfficialRhn
 
 __all__ = [Lstm, ZarembaLstmCell, MoonLstmCell, TiedGalLstmCell,
