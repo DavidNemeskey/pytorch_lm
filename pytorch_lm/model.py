@@ -44,7 +44,8 @@ class GenericRnnModel(LMModel):
     - output_dropout: the dropout applied on the RNN output.
     """
     def __init__(self, vocab_size, embedding_size=0, hidden_size=0,
-                 rnn=None, embedding_dropout=None, output_dropout=None,
+                 rnn=None, embedding_dropout=None, input_dropout=None,
+                 layer_dropout=None, output_dropout=None,
                  weight_tying=False):
         super(GenericRnnModel, self).__init__()
         self.vocab_size = vocab_size
@@ -55,6 +56,8 @@ class GenericRnnModel(LMModel):
 
         # Embedding & output dropouts
         self.emb_do = create_dropout(embedding_dropout, True)
+        self.in_do = create_dropout(input_dropout)
+        self.lay_do = create_dropout(layer_dropout)
         self.out_do = create_dropout(output_dropout)
 
         self.encoder = nn.Embedding(vocab_size, embedding_size)

@@ -177,7 +177,7 @@ class TiedGalLstmLayer(LstmLayer):
     Following Gal and Ghahramani (2016), per-sequence dropout is applied on
     both the input and h_t. Also known as VD-LSTM. With tied gates.
     """
-    def forward(self, input, hidden):
+    def forward_one(self, input, hidden):
         h_t, c_t = hidden
 
         ifgo = input.matmul(self.w_i) + self.do[0](h_t).matmul(self.w_h)
@@ -203,7 +203,7 @@ class UntiedGalLstmLayer(LstmLayer):
         return [StatefulDropout(self.dropout)
                 for _ in range(4)]
 
-    def forward(self, input, hidden):
+    def forward_one(self, input, hidden):
         h_t, c_t = hidden
 
         w_ii, w_if, w_ig, w_io = self.w_i.chunk(4, 1)
@@ -226,7 +226,7 @@ class UntiedGalLstmLayer(LstmLayer):
 
 class SemeniutaLstmLayer(LstmLayer):
     """Following Semeniuta et al. (2016), dropout is applied on g_t."""
-    def forward(self, input, hidden):
+    def forward_one(self, input, hidden):
         h_t, c_t = hidden
 
         ifgo = input.matmul(self.w_i) + h_t.matmul(self.w_h)
@@ -249,7 +249,7 @@ class MerityLstmLayer(LstmLayer):
     the hidden-to-hidden matrices. The parameter of the DropConnect probability
     is still called dropout, unfortunately.
     """
-    def forward(self, input, hidden):
+    def forward_one(self, input, hidden):
         h_t, c_t = hidden
 
         ifgo = input.matmul(self.w_i) + h_t.matmul(self.do[0](self.w_h))
@@ -342,27 +342,3 @@ class Lstm(nn.Module):
     def init_hidden(self, batch_size):
         return [self.layers[l].init_hidden(batch_size)
                 for l in range(self.num_layers)]
-
-    def save_parameters(self, out_dict=None, prefix=''):
-        """
-        Saves the parameters into a dictionary that can later be e.g. savez'd.
-        If prefix is specified, it is prepended to the names of the parameters,
-        allowing for hierarchical saving / loading of parameters of a composite
-        model.
-        """
-        if out_dict is None:
-            out_dict = {}
-        for l, layer in enumerate(self.layers):
-            self.layers[l].save_parameters(
-                out_dict, prefix + 'Layer_' + str(l) + '/')
-        return out_dict
-
-    def load_parameters(self, data_dict, prefix=''):
-        """Loads the parameters saved by save_parameters()."""
-        for l, layer in enumerate(self.layers):
-            key = prefix + 'Layer_' + str(l) + '/'
-            part_dict = {k: v for k, v in data_dict.items() if k.startswith(key)}
-            layer.load_parameters(part_dict, key)
-
-    def __repr__(self):
-        return '{}({})'.format(self.__class__.__name__, public_dict(self))
