@@ -1,28 +1,22 @@
 #!/usr/bin/env python3
 # vim: set fileencoding=utf-8 :
 
-"""Various dropout variants."""
+"""
+Various dropout variants. These are used only for the H-to-H connections in the
+custom RNN classes; between layers the regular torch.nn dropout modules are
+used.
+"""
+
+from abc import ABC, abstractmethod
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
-def split_dropout(do_value):
-    """
-    Handles both string and number dropout values, with or without the "s"
-    suffix (see create_dropout).
-    """
-    do_str = str(do_value)
-    if do_str.endswith('s'):
-        s = True
-        do_str = do_str[:-1]
-    else:
-        s = False
-    return float(do_str), s
+from pytorch_lm.locked_dropout import LockedDropout
 
 
-class Dropout(nn.Module):
+class Dropout(nn.Module, ABC):
     """Base class for the two dropout variants."""
     def __init__(self, p=0):
         """
@@ -36,7 +30,6 @@ class Dropout(nn.Module):
             must be called by hand. This is useful for per-sequence masks.
         """
         super(Dropout, self).__init__()
-        p, _ = split_dropout(p)
         if p < 0 or 1 < p:
             raise ValueError('Dropout: p must be between 0 and 1')
         self.p = p
@@ -58,9 +51,9 @@ class Dropout(nn.Module):
         """
         pass
 
+    @abstractmethod
     def forward(self, x):
-        raise NotImplementedError('forward not implemented in {}'.format(
-            self.__class__.__name__))
+        """To be implemented by subclasses."""
 
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__, self.p)
@@ -115,16 +108,34 @@ class NoDropout(Dropout):
         return x
 
 
-def create_dropout(do_value, default_none=False):
+def split_dropout(do_value):
+    """
+    Handles both string and number dropout values, with or without the "s"
+    suffix (see create_dropout).
+    """
+    do_str = str(do_value)
+    if do_str.endswith('s'):
+        s = True
+        do_str = do_str[:-1]
+    else:
+        s = False
+    return float(do_str), s
+
+
+def create_hidden_dropout(do_value, default_none=False):
     """
     Creates a dropout object from a DO string (or any object whose __str__
     method returns a string of the right format). The format is "<p>(s)", where
     <p> is the drop (not keep!) probability, and the s suffix is optional and
     marks per-sequence (stateful) dropout.
 
+    This function returns instances of the :class:`Dropout` subclasses defined
+    in this module; use :func:`create_dropout` to create
+    :class:`torch.nn.Dropout` or :class:`LockedDropout` objects.
+
     If do_value evaluates to False, the return value depends on the default_none
-    argument. If it is False (the default), a NoDropout object is returned;
-    otherwise, None.
+    argument. If it is False (the default), a :class:`NoDropout` object is
+    returned; otherwise, None.
     """
     if do_value:
         p, s = split_dropout(do_value)
@@ -132,3 +143,25 @@ def create_dropout(do_value, default_none=False):
         if p > 0:
             return cls(p)
     return NoDropout() if not default_none else None
+
+
+def create_dropout(do_value):
+    """
+    Creates a dropout object from a DO string (or any object whose __str__
+    method returns a string of the right format). The format is "<p>(s)", where
+    <p> is the drop (not keep!) probability, and the s suffix is optional and
+    marks per-sequence (stateful) dropout.
+
+    This function returns instances of :class:`torch.nn.Dropout` or
+    :class:`LockedDropout` objects; to create subclasses of the :class:`Dropout`
+    class defined in this module; use :func:`create_hidden_dropout`.
+
+    If do_value evaluates to False, the return value depends on the default_none
+    argument. If it is False (the default), a NoDropout object is returned;
+    otherwise, None.
+    """
+    if do_value:
+        p, s = split_dropout(do_value)
+        (LockedDropout if s else nn.Dropout)(p)
+    else:
+        return nn.Dropout(0)

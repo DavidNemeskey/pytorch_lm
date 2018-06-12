@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
-from pytorch_lm.dropout import StatefulDropout, create_dropout
+from pytorch_lm.dropout import create_hidden_dropout
 from pytorch_lm.utils.config import create_object
 from pytorch_lm.utils.lang import public_dict
 
@@ -135,9 +135,10 @@ class DropoutLstmLayer(LstmLayer):
         """
         Creates the ``list`` of :class:`Dropout` objects used by the cell.
         This is one method to be implemented; this default implementation
-        returns a single Dropout object created with create_dropout().
+        returns a single :class:`Dropout` object created with
+        :func:`create_dropout`.
         """
-        return [create_dropout(self.dropout)]
+        return [create_hidden_dropout(self.hh_dropout)]
 
     def forward(self, inputs, hidden):
         """
@@ -200,8 +201,7 @@ class UntiedGalLstmLayer(LstmLayer):
     both the input and h_t. Also known as VD-LSTM. With untied weights.
     """
     def create_dropouts(self):
-        return [StatefulDropout(self.dropout)
-                for _ in range(4)]
+        return [create_hidden_dropout(self.hh_dropout) for _ in range(4)]
 
     def forward_one(self, input, hidden):
         h_t, c_t = hidden
