@@ -145,7 +145,7 @@ def create_hidden_dropout(do_value, default_none=False):
     return NoDropout() if not default_none else None
 
 
-def create_dropout(do_value):
+def create_dropout(do_value, default_none=False):
     """
     Creates a dropout object from a DO string (or any object whose __str__
     method returns a string of the right format). The format is "<p>(s)", where
@@ -157,11 +157,11 @@ def create_dropout(do_value):
     class defined in this module; use :func:`create_hidden_dropout`.
 
     If do_value evaluates to False, the return value depends on the default_none
-    argument. If it is False (the default), a NoDropout object is returned;
-    otherwise, None.
+    argument. If it is False (the default), a regular :class:`nn.Dropout`
+    object is returned; otherwise, None.
     """
     if do_value:
         p, s = split_dropout(do_value)
         (LockedDropout if s else nn.Dropout)(p)
     else:
-        return nn.Dropout(0)
+        return nn.Dropout(0) if not default_none else None
