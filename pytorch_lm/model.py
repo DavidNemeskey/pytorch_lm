@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 
 from pytorch_lm.dropout import create_dropout
-from pytorch_lm.utils.config import create_object
 from pytorch_lm.utils.lang import public_dict
 
 
@@ -61,10 +60,11 @@ class GenericRnnModel(LMModel):
         self.out_do = create_dropout(output_dropout)
 
         self.encoder = nn.Embedding(vocab_size, embedding_size)
-        self.rnn = create_object(
-            rnn, base_module='pytorch_lm.rnn',
-            args=[self.embedding_size, self.hidden_size]
-        )
+        # self.rnn = create_object(
+        #     rnn, base_module='pytorch_lm.rnn',
+        #     args=[self.embedding_size, self.hidden_size]
+        # )
+        self.rnn = None
         self.decoder = nn.Linear(embedding_size, vocab_size)
 
         if weight_tying:
@@ -86,17 +86,17 @@ class GenericRnnModel(LMModel):
 
         # Embedding dropout
         if self.emb_do:
-            self.emb_do.reset_noise()
             # Creates the input embedding mask. A much faster version of the
-            # solution in
+            # solution
             # from https://github.com/julian121266/RecurrentHighwayNetworks
             mask = self.emb_do(torch.ones_like(input).type_as(emb)).cpu()
 
-            for b in range(mask.size()[0]):
+            for batch in range(mask.size()[0]):
                 m = {}
                 for n1 in range(mask.size()[1]):
-                    x = m.setdefault(input[b][n1].item(), mask[b][n1].item())
-                    mask[b][n1] = x
+                    x = m.setdefault(input[batch][n1].item(), mask[batch][n1].item())
+                    mask[batch][n1] = x
+            # type_as() puts it mask back to cuda if emb is there
             emb = emb * mask.type_as(emb).unsqueeze(2).expand_as(emb)
         return emb
 
