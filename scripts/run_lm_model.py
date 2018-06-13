@@ -118,6 +118,7 @@ def read_config(config_file, vocab_size):
 def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     optimizer, batch_size, num_steps, grad_clip = getall(
         config, ['optimizer', 'batch_size', 'num_steps', 'grad_clip'])
+    print('Xtrain', flush=True)
     # Turn on training mode which enables dropout.
     model.train()
 
@@ -129,6 +130,7 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     hidden = model.init_hidden(batch_size)
 
     for batch, (data, targets, lr_ratio) in enumerate(train_data.get_batches(num_steps)):
+        print('Xbatch', batch, flush=True)
         seq_len = targets.size(1)
         # def to_str(f):
         #     return corpus.dictionary.idx2word[f]
@@ -205,7 +207,7 @@ def initialize_model(model, initializer, bias_initializer=None):
     latter defaults to constant zero.
     """
     if not bias_initializer:
-        bias_initializer = partial(torch.nn.init.constant, val=0)
+        bias_initializer = partial(torch.nn.init.constant_, val=0)
     for name, p in model.named_parameters():
         if name.lower().endswith('bias'):
             bias_initializer(p.data)
