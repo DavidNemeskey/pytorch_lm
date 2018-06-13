@@ -160,7 +160,6 @@ def create_dropout(do_value, default_none=False):
     argument. If it is False (the default), a regular :class:`nn.Dropout`
     object is returned; otherwise, None.
     """
-    print('DO VALUE', do_value)
     if do_value:
         p, s = split_dropout(do_value)
         return (LockedDropout if s else nn.Dropout)(p)
