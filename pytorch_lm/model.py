@@ -144,7 +144,7 @@ class GenericRnnModel(LMModel):
 
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__,
-                               dict(public_dict(self), rnn=self.rnn))
+                               dict(public_dict(self), rnn=self.layers))
 
 
 class GenericLstmModel(GenericRnnModel):
