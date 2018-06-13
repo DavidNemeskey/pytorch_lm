@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 
 from pytorch_lm.dropout import create_dropout
+from pytorch_lm.utils.config import create_object
 from pytorch_lm.utils.lang import public_dict
 
 
@@ -42,12 +43,14 @@ class GenericRnnModel(LMModel):
       (a dropout string)
     - output_dropout: the dropout applied on the RNN output.
     """
-    def __init__(self, vocab_size, embedding_size=0, hidden_size=0,
-                 rnn=None, embedding_dropout=None, input_dropout=None,
+    def __init__(self, vocab_size, num_layers, rnn=None,
+                 embedding_size=0, hidden_size=0, batch_first=False,
+                 embedding_dropout=None, input_dropout=None,
                  layer_dropout=None, output_dropout=None,
                  weight_tying=False):
         super(GenericRnnModel, self).__init__()
         self.vocab_size = vocab_size
+        self.num_layers = num_layers
         self.hidden_size = hidden_size if hidden_size else embedding_size
         self.embedding_size = embedding_size if embedding_size else self.hidden_size
         if not (self.hidden_size or self.embedding_size):
@@ -56,15 +59,21 @@ class GenericRnnModel(LMModel):
         # Embedding & output dropouts
         self.emb_do = create_dropout(embedding_dropout, True)
         self.in_do = create_dropout(input_dropout)
-        self.lay_do = create_dropout(layer_dropout)
+        self.lay_do = [create_dropout(layer_dropout)
+                       for _ in range(num_layers - 1)]
         self.out_do = create_dropout(output_dropout)
 
         self.encoder = nn.Embedding(vocab_size, embedding_size)
-        # self.rnn = create_object(
-        #     rnn, base_module='pytorch_lm.rnn',
-        #     args=[self.embedding_size, self.hidden_size]
-        # )
-        self.rnn = None
+        if not rnn:
+            rnn = {'class': 'DefaultLstmLayer'}
+        self.layers = []
+        for l in range(num_layers):
+            in_size = embedding_size if not l else hidden_size
+            out_size = hidden_size if l + 1 != num_layers else embedding_size
+            self.layers.append(
+                create_object(rnn, base_module='pytorch_lm.rnn',
+                              args=[in_size, out_size])
+            )
         self.decoder = nn.Linear(embedding_size, vocab_size)
 
         if weight_tying:
@@ -76,7 +85,7 @@ class GenericRnnModel(LMModel):
 
     def forward(self, input, hidden):
         emb = self._encode(input)
-        output, hidden = self._rnn(emb, hidden)
+        output, hidden, outputs, raw_outputs = self._rnn(emb, hidden)
         decoded = self._decode(output)
         return decoded, hidden
 
@@ -103,11 +112,24 @@ class GenericRnnModel(LMModel):
     def _rnn(self, emb, hidden):
         """Runs the RNN on the embedded input."""
         # self.rnn.flatten_parameters()
-        # output is a list at this point
-        output, hidden = self.rnn(emb, hidden)
-        self.out_do.reset_noise()
-        output = [self.out_do(o) for o in output]
-        return torch.stack(output, 1), hidden
+        raw_outputs = []
+        outputs = []
+        new_hidden = []
+
+        input = self.in_do(emb)
+        for l, rnn in enumerate(self.layers):
+            l_output, l_hidden = rnn(input, hidden[l])
+            raw_outputs.append(l_output)
+            new_hidden.append(l_hidden)
+            if l != self.num_layers - 1:
+                output = self.lay_do[l](l_output)
+            else:
+                output = self.out_do(l_output)
+            outputs.append(output)
+
+        # raw_outputs and outputs are returned so that activation regularization
+        # (see Merity et al. 2018) can be done
+        return output, new_hidden, raw_outputs, outputs
 
     def _decode(self, output):
         """Runs softmax (etc.) on the output of the (last) RNN layer."""
@@ -118,7 +140,7 @@ class GenericRnnModel(LMModel):
     # ----- End of forward() ------
 
     def init_hidden(self, batch_size):
-        return self.rnn.init_hidden(batch_size)
+        return [rnn.init_hidden(batch_size) for rnn in self.layers]
 
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__,
