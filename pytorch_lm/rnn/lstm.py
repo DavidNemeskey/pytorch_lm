@@ -20,10 +20,7 @@ class InitHidden(object):
     def init_hidden(self, batch_size):
         """Returns the Variables for the hidden states."""
         weight = next(self.parameters()).data
-        if self.batch_first:
-            dims = (batch_size, 1, self.hidden_size)
-        else:
-            dims = (1, batch_size, self.hidden_size)
+        dims = (batch_size, 1, self.hidden_size)
         ret = (Variable(weight.new_full(dims, 0)),
                Variable(weight.new_full(dims, 0)))
         return ret
@@ -33,22 +30,18 @@ class LstmLayer(nn.Module, InitHidden):
     """
     A reimplementation of the LSTM cell. (Actually, a layer of LSTM cells.)
 
-    As a reminder: input size is seq_len x batch_size x input_features,
-    following the PyTorch convention; but also see the batch_first parameter.
+    As a reminder: input size is batch_size x seq_len x input_features.
     """
-    def __init__(self, input_size, hidden_size, batch_first=False,
-                 forget_bias=1):
+    def __init__(self, input_size, hidden_size, forget_bias=1):
         """
         Args:
             - input_size: the number of input features
             - hidden_size: the number of cells
-            - batch_first: if True, the first two dimensions are swapped [False]
             - forget_bias: the value of the forget bias [1]
         """
         super(LstmLayer, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.batch_first = batch_first
 
         self.w_i = nn.Parameter(torch.Tensor(input_size, 4 * hidden_size))
         self.w_h = nn.Parameter(torch.Tensor(hidden_size, 4 * hidden_size))
@@ -73,7 +66,7 @@ class LstmLayer(nn.Module, InitHidden):
         Runs the layer on the sequence input. Calls forward_one in a loop.
         """
         outputs = []
-        seq_dim = 1 if self.batch_first else 0
+        seq_dim = 1  # if self.batch_first else 0
         h_t, c_t = (h.squeeze(seq_dim) for h in hidden)
 
         # chunk() cuts batch_size x 1 x input_size chunks from input
@@ -96,6 +89,7 @@ class LstmLayer(nn.Module, InitHidden):
 
 class PytorchLstmLayer(nn.LSTM, InitHidden):
     """Wraps the PyTorch LSTM object."""
+    # TODO overwrite __init__ so that batch_first is the default
     pass
 
 
@@ -122,10 +116,9 @@ class DefaultLstmLayer(LstmLayer):
 
 class DropoutLstmLayer(LstmLayer):
     """An LstmLayer with H->H dropout."""
-    def __init__(self, input_size, hidden_size, batch_first=False,
-                 forget_bias=1, hh_dropout=0):
+    def __init__(self, input_size, hidden_size, forget_bias=1, hh_dropout=0):
         super(DropoutLstmLayer, self).__init__(
-            input_size, hidden_size, batch_first, forget_bias)
+            input_size, hidden_size, forget_bias)
         self.hh_dropout = hh_dropout
 
         self.do = self.create_dropouts()
