@@ -66,7 +66,7 @@ class GenericRnnModel(LMModel):
         self.encoder = nn.Embedding(vocab_size, self.embedding_size)
         if not rnn:
             rnn = {'class': 'DefaultLstmLayer'}
-        self.layers = []
+        self.layers = nn.ModuleList()
         for l in range(num_layers):
             in_size = self.embedding_size if not l else self.hidden_size
             out_size = self.hidden_size if l + 1 != num_layers else self.embedding_size
