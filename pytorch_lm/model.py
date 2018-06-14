@@ -63,18 +63,18 @@ class GenericRnnModel(LMModel):
                        for _ in range(num_layers - 1)]
         self.out_do = create_dropout(output_dropout)
 
-        self.encoder = nn.Embedding(vocab_size, embedding_size)
+        self.encoder = nn.Embedding(vocab_size, self.embedding_size)
         if not rnn:
             rnn = {'class': 'DefaultLstmLayer'}
         self.layers = []
         for l in range(num_layers):
-            in_size = embedding_size if not l else hidden_size
-            out_size = hidden_size if l + 1 != num_layers else embedding_size
+            in_size = self.embedding_size if not l else self.hidden_size
+            out_size = self.hidden_size if l + 1 != num_layers else self.embedding_size
             self.layers.append(
                 create_object(rnn, base_module='pytorch_lm.rnn',
                               args=[in_size, out_size])
             )
-        self.decoder = nn.Linear(embedding_size, vocab_size)
+        self.decoder = nn.Linear(self.embedding_size, vocab_size)
 
         if weight_tying:
             # Linear.weight is transposed, so this will just work
