@@ -118,7 +118,6 @@ def read_config(config_file, vocab_size):
 def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     optimizer, batch_size, num_steps, grad_clip = getall(
         config, ['optimizer', 'batch_size', 'num_steps', 'grad_clip'])
-    print('Xtrain', flush=True)
     # Turn on training mode which enables dropout.
     model.train()
 
@@ -130,7 +129,6 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     hidden = model.init_hidden(batch_size)
 
     for batch, (data, targets, lr_ratio) in enumerate(train_data.get_batches(num_steps)):
-        print('Xbatch', batch, flush=True)
         seq_len = targets.size(1)
         # def to_str(f):
         #     return corpus.dictionary.idx2word[f]
@@ -151,7 +149,7 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         if grad_clip:
-            torch.nn.utils.clip_grad_norm(model.parameters(), grad_clip)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
         # for name, p in model.named_parameters():
         #     print('GRAD', name, p.grad.data)
 
