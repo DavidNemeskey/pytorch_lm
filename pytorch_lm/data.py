@@ -120,6 +120,9 @@ class LMData(object):
         The chunks are along dimension 1, corresponding to the seq_len
         dimension in the Lstm class, but unlike the LSTM in Pytorch.
 
+        Returns the two tensors above, and the learning rate ratio if
+        ``evaluate`` is ``False``.
+
         Arguments:
         - num_steps: the BPTT sequencer object
         - evaluation: whether the minibatch will be used in evaluation (i.e. it
@@ -134,4 +137,7 @@ class LMData(object):
             else:
                 data = Variable(data_chunk)
             target = Variable(target_chunk)  # .view(-1))
-            yield data, target, lr_ratio
+            if not evaluation:
+                yield data, target, lr_ratio
+            else:
+                yield data, target
