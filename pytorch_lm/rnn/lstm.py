@@ -67,13 +67,13 @@ class LstmLayer(nn.Module, InitHidden):
             b_f.fill_(module.f_bias)
             module.f_bias = None
 
-    def forward(self, inputs, hidden):
+    def forward(self, input, hidden):
         """
-        Runs the layer on the sequence inputs. Calls forward_one in a loop.
+        Runs the layer on the sequence input. Calls forward_one in a loop.
         """
         outputs = []
         seq_dim = 1 if self.batch_first else 0
-        h_t, c_t = map(h.squeeze(seq_dim) for h in hidden)
+        h_t, c_t = (h.squeeze(seq_dim) for h in hidden)
 
         # chunk() cuts batch_size x 1 x input_size chunks from input
         for input_t in input.chunk(input.size(1), dim=seq_dim):
