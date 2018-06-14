@@ -24,8 +24,9 @@ class InitHidden(object):
             dims = (batch_size, 1, self.hidden_size)
         else:
             dims = (1, batch_size, self.hidden_size)
-        return (Variable(weight.new(dims).zero_()),
-                Variable(weight.new(dims).zero_()))
+        ret = (Variable(weight.new_full(dims, 0)),
+               Variable(weight.new_full(dims, 0)))
+        return ret
 
 
 class LstmLayer(nn.Module, InitHidden):
