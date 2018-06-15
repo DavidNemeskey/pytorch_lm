@@ -11,16 +11,17 @@ from torch.autograd import Variable
 
 class LockedDropout(nn.Module):
     """Variational dropout object."""
-    def __init__(self):
+    def __init__(self, dropout=0):
         super().__init__()
+        self.dropout = dropout
 
-    def forward(self, x, dropout=0.5):
+    def forward(self, x):
         """
-        :param x: a 3D tensor, where the first is the time dimension
+        :param x: a 3D tensor, where the time dimension is the second
         """
-        if not self.training or not dropout:
+        if not self.training or not self.dropout:
             return x
-        m = x.data.new(1, x.size(1), x.size(2)).bernoulli_(1 - dropout)
-        mask = Variable(m, requires_grad=False) / (1 - dropout)
+        m = x.data.new(x.size(0), 1, x.size(2)).bernoulli_(1 - self.dropout)
+        mask = Variable(m, requires_grad=False) / (1 - self.dropout)
         mask = mask.expand_as(x)
         return mask * x
