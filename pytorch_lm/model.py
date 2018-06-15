@@ -41,13 +41,15 @@ class GenericRnnModel(LMModel):
     }
     - embedding_dropout: per-row dropout on the embedding matrix
       (a dropout string)
-    - output_dropout: the dropout applied on the RNN output.
+    - output_dropout: the dropout applied on the RNN output
+    - dropout: input + layer + output dropout. The individual parameters take
+               precedence.
     """
     def __init__(self, vocab_size, num_layers, rnn=None,
-                 embedding_size=0, hidden_size=0, batch_first=False,
+                 embedding_size=0, hidden_size=0,
                  embedding_dropout=None, input_dropout=None,
                  layer_dropout=None, output_dropout=None,
-                 weight_tying=False):
+                 dropout=None, weight_tying=False):
         super(GenericRnnModel, self).__init__()
         self.vocab_size = vocab_size
         self.num_layers = num_layers
@@ -56,6 +58,9 @@ class GenericRnnModel(LMModel):
         if not (self.hidden_size or self.embedding_size):
             raise ValueError('embedding_size and hidden_size cannot be both 0')
 
+        input_dropout = input_dropout or dropout
+        layer_dropout = layer_dropout or dropout
+        output_dropout = output_dropout or dropout
         # Embedding & output dropouts
         self.emb_do = create_dropout(embedding_dropout, True)
         self.in_do = create_dropout(input_dropout)
@@ -147,58 +152,21 @@ class GenericRnnModel(LMModel):
                                dict(public_dict(self), rnn=self.layers))
 
 
-class GenericLstmModel(GenericRnnModel):
-    """
-    Implements a generic embedding - LSTM - softmax LM.
-    Arguments:
-    - vocab_size: vocab size
-    - embedding_size: the size of the embedding (and the softmax). If either
-                      this or the next parameter is 0, they are taken to be
-                      equal
-    - hidden_size: the number of units in the hidden LSTM layers. See above
-    - dropout: the dropout probability between LSTM layers (float)
-    - cell_data: a dictionary:
-    {
-      "class": the LstmCell subclass
-      "args": its arguments (apart from input & hidden size and dropout prob.)
-      "kwargs": its keyword arguments (likewise)
-    }
-    - embedding_dropout: per-row dropout on the embedding matrix
-      (a dropout string)
-    - output_dropout: the dropout applied on the RNN output.
-    """
-    def __init__(self, vocab_size, embedding_size=0, hidden_size=0,
-                 num_layers=2, dropout=0.5,
-                 cell_data=None, embedding_dropout=None, output_dropout=None):
-        rnn_setup = {
-            'class': 'Lstm',
-            'kwargs': {
-                'cell_data': cell_data,
-                'num_layers': num_layers,
-                'dropout': dropout
-            }
-        }
-        super(GenericLstmModel, self).__init__(
-            vocab_size, embedding_size, hidden_size, rnn_setup,
-            embedding_dropout, output_dropout
-        )
-
-
-class SmallLstmModel(GenericLstmModel):
+class SmallLstmModel(GenericRnnModel):
     def __init__(self, vocab_size):
-        super(SmallLstmModel, self).__init__(vocab_size, 200, 200, 2, 0)
+        super(SmallLstmModel, self).__init__(vocab_size, 2, hidden_size=200)
 
 
-class MediumLstmModel(GenericLstmModel):
+class MediumLstmModel(GenericRnnModel):
     def __init__(self, vocab_size):
-        super(MediumLstmModel, self).__init__(vocab_size, 650, 650, 2, 0.5,
-                                              output_dropout='0.5')
+        super(MediumLstmModel, self).__init__(vocab_size, 2, hidden_size=650,
+                                              dropout=0.5)
 
 
-class LargeLstmModel(GenericLstmModel):
+class LargeLstmModel(GenericRnnModel):
     def __init__(self, vocab_size):
-        super(LargeLstmModel, self).__init__(vocab_size, 1500, 1500, 2, 0.65,
-                                             output_dropout='0.65')
+        super(LargeLstmModel, self).__init__(vocab_size, 2, hidden_size=1500,
+                                             dropout=0.65)
 
 
 class PressAndWolfModel(GenericRnnModel):
@@ -213,12 +181,12 @@ class PressAndWolfModel(GenericRnnModel):
     The default is weight tying and projection with lambda = 0.15, as in the
     paper.
     """
-    def __init__(self, vocab_size, embedding_size=0, hidden_size=0,
+    def __init__(self, vocab_size, num_layers, embedding_size=0, hidden_size=0,
                  rnn=None, embedding_dropout=None, output_dropout=None,
-                 weight_tying=True, projection_lambda=0.15):
+                 dropout=None, weight_tying=True, projection_lambda=0.15):
         super(PressAndWolfModel, self).__init__(
-            vocab_size, embedding_size, hidden_size, rnn,
-            embedding_dropout, output_dropout, weight_tying
+            vocab_size, num_layers, embedding_size, hidden_size, rnn,
+            embedding_dropout, output_dropout, dropout, weight_tying
         )
 
         if projection_lambda:
@@ -243,19 +211,19 @@ class PressAndWolfModel(GenericRnnModel):
 class SmallPressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
         super(SmallPressAndWolfModel, self).__init__(
-            vocab_size, 200, 200, 2, 0)
+            vocab_size, 2, hidden_size=200)
 
 
 class MediumPressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
         super(MediumPressAndWolfModel, self).__init__(
-            vocab_size, 650, 650, 2, 0.5, output_dropout=0.5)
+            vocab_size, 2, hidden_size=650, dropout=0.5)
 
 
 class LargePressAndWolfModel(PressAndWolfModel):
     def __init__(self, vocab_size):
         super(LargePressAndWolfModel, self).__init__(
-            vocab_size, 1500, 1500, 2, 0.65, output_dropout=0.65)
+            vocab_size, 2, hidden_size=1500, dropout=0.65)
 
 
 class MerityModel(GenericRnnModel):
