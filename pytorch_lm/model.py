@@ -59,8 +59,8 @@ class GenericRnnModel(LMModel):
         # Embedding & output dropouts
         self.emb_do = create_dropout(embedding_dropout, True)
         self.in_do = create_dropout(input_dropout)
-        self.lay_do = [create_dropout(layer_dropout)
-                       for _ in range(num_layers - 1)]
+        self.lay_do = nn.ModuleList(
+            [create_dropout(layer_dropout) for _ in range(num_layers - 1)])
         self.out_do = create_dropout(output_dropout)
 
         self.encoder = nn.Embedding(vocab_size, self.embedding_size)
