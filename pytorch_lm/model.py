@@ -287,8 +287,11 @@ class RealMerityModel(GenericRnnModel):
         )
         self.dropconnect = dropconnect
 
-        self.layers = [WeightDrop(rnn, ['weight_hh_l0'], dropout=dropconnect)
-                       for rnn in self.layers]
+        layers = [WeightDrop(rnn, ['weight_hh_l0'], dropout=dropconnect)
+                  for rnn in self.layers]
+        del self.layers[:]
+        for rnn in layers:
+            self.layers.append(rnn)
 
         self.alpha = alpha
         self.beta = beta
