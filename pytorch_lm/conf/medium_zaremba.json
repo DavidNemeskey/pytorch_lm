@@ -1,13 +1,18 @@
 {
 	"model": {
-		"class": "MediumLstmModel"
+		"class": "GenericRnnModel",
+		"kwargs": {
+			"num_layers": 2,
+			"embedding_size": 650,
+			"dropout": 0.5
+		}
 	},
 	"optimizer": {
 		"class": "torch.optim.SGD",
 		"args": [1.0]
 	},
 	"initializer": {
-		"function": "uniform",
+		"function": "uniform_",
 		"kwargs": {"a": -0.05, "b": 0.05}
 	},
 	"lr_scheduler": {
