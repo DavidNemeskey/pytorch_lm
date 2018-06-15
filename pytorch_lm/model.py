@@ -4,6 +4,7 @@ import torch.nn as nn
 from pytorch_lm.dropout import create_dropout
 from pytorch_lm.utils.config import create_object
 from pytorch_lm.utils.lang import public_dict
+from pytorch_lm.weight_drop import WeightDrop
 
 
 class LMModel(nn.Module):
@@ -99,7 +100,7 @@ class GenericRnnModel(LMModel):
         emb = self.encoder(input)
 
         # Embedding dropout
-        if self.emb_do:
+        if self.emb_do and self.training:
             # Creates the input embedding mask. A much faster version of the
             # solution
             # from https://github.com/julian121266/RecurrentHighwayNetworks
@@ -262,6 +263,54 @@ class MerityModel(GenericRnnModel):
         if self.alpha:
             self.loss_reg += self.alpha * output.pow(2).mean()
         return output, hidden
+
+    def loss_regularizer(self):
+        """AR + TAR."""
+        return self.loss_reg
+
+
+class RealMerityModel(GenericRnnModel):
+    """
+    Imported and converted from the original repository.
+    """
+    def __init__(self, vocab_size, num_layers, rnn=None,
+                 embedding_size=0, hidden_size=0,
+                 embedding_dropout=None, input_dropout=None,
+                 layer_dropout=None, output_dropout=None,
+                 dropout=None, weight_tying=True,
+                 dropconnect=0, alpha=0, beta=0):
+        """The new parameters are alpha for AR and beta for TAR."""
+        super(RealMerityModel, self).__init__(
+            vocab_size, num_layers, {'class': 'PytorchLstmLayer'},
+            embedding_size, hidden_size, embedding_dropout, input_dropout,
+            layer_dropout, output_dropout, dropout, weight_tying
+        )
+        self.dropconnect = dropconnect
+
+        self.layers = [WeightDrop(rnn, ['weight_hh_l0'], dropout=dropconnect)
+                       for rnn in self.layers]
+
+        self.alpha = alpha
+        self.beta = beta
+        self.loss_reg = 0
+
+    def _rnn(self, emb, hidden):
+        """
+        Runs the RNN on the embedded input. Also computes the regularization
+        loss (both AR and TAR are activation regularizers, so they can only be
+        computed while the data tensors are available.
+        """
+        output, hidden, raw_outputs, outputs = super(RealMerityModel, self)._rnn(
+            emb, hidden)
+
+        self.loss_reg = 0
+        raw_output = raw_outputs[-1]
+        if self.beta:
+            self.loss_reg += self.beta * (
+                raw_output[:, 1:] - raw_output[:, :-1]).pow(2).mean()
+        if self.alpha:
+            self.loss_reg += self.alpha * output.pow(2).mean()
+        return output, hidden, raw_outputs, outputs
 
     def loss_regularizer(self):
         """AR + TAR."""
