@@ -21,7 +21,7 @@ class InitHidden(object):
     def init_hidden(self, batch_size):
         """Returns the Variables for the hidden states."""
         weight = next(self.parameters()).data
-        dims = (batch_size, 1, self.hidden_size)
+        dims = (1, batch_size, self.hidden_size)
         ret = (Variable(weight.new_full(dims, 0)),
                Variable(weight.new_full(dims, 0)))
         return ret
@@ -68,7 +68,7 @@ class LstmLayer(nn.Module, InitHidden):
         """
         outputs = []
         seq_dim = 1  # if self.batch_first else 0
-        h_t, c_t = (h.squeeze(seq_dim) for h in hidden)
+        h_t, c_t = (h.squeeze(0) for h in hidden)
 
         # chunk() cuts batch_size x 1 x input_size chunks from input
         for input_t in input.chunk(input.size(1), dim=seq_dim):
@@ -78,7 +78,7 @@ class LstmLayer(nn.Module, InitHidden):
             outputs.append(values)
 
         return (torch.stack(outputs, seq_dim),
-                (h_t.unsqueeze(seq_dim), c_t.unsqueeze(seq_dim)))
+                (h_t.unsqueeze(0), c_t.unsqueeze(0)))
 
     def forward_one(self, input, hidden):
         """Of course, forward must be implemented in subclasses."""
