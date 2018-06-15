@@ -138,6 +138,7 @@ class GenericRnnModel(LMModel):
 
     def _decode(self, output):
         """Runs softmax (etc.) on the output of the (last) RNN layer."""
+        output = output.contiguous()
         decoded = self.decoder(
             output.view(output.size(0) * output.size(1), output.size(2)))
         return decoded.view(output.size(0), output.size(1), decoded.size(1))
