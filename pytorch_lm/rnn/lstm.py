@@ -3,12 +3,13 @@
 
 """Implements a very basic version of LSTM."""
 
+import logging
+
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
 from pytorch_lm.dropout import create_hidden_dropout
-from pytorch_lm.utils.config import create_object
 from pytorch_lm.utils.lang import public_dict
 
 
@@ -88,9 +89,29 @@ class LstmLayer(nn.Module, InitHidden):
 
 
 class PytorchLstmLayer(nn.LSTM, InitHidden):
-    """Wraps the PyTorch LSTM object."""
-    # TODO overwrite __init__ so that batch_first is the default
-    pass
+    """
+    Wraps the PyTorch LSTM object. Only a few parameters are supported; most
+    have fixed values.
+    """
+    keys = ['input_size', 'hidden_size', 'num_layers', 'bias',
+            'batch_first', 'dropout', 'bidirectional']
+    fixed_values = {'num_layers': 1, 'batch_first': True,
+                    'dropout': 0, 'bidirectional': False}
+
+    def __init__(self, *args, **kwargs):
+        kwargs.update(zip(self.keys, args))
+        for key, value in self.fixed_values.items():
+            if key in kwargs:
+                logging.getLogger('pytorch_lm.rnn.lstm').warn(
+                    'Key {} is overridden in {} to {}'.format(
+                        key, self.__class__.__name__, value))
+            kwargs[key] = value
+        try:
+            super(PytorchLstmLayer, self).__init__(
+                kwargs.pop('input_size'), kwargs.pop('hidden_size'), **kwargs)
+        except KeyError as ke:
+            raise TypeError(
+                '__init__() missing 1 required positional argument: {}'.format(ke))
 
 
 class DefaultLstmLayer(LstmLayer):
