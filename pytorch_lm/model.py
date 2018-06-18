@@ -63,7 +63,7 @@ class GenericRnnModel(LMModel):
         layer_dropout = layer_dropout or dropout
         output_dropout = output_dropout or dropout
         # Embedding & output dropouts
-        self.emb_do = create_dropout(embedding_dropout, True)
+        self.emb_do = nn.Dropout(float(embedding_dropout))
         self.in_do = create_dropout(input_dropout)
         self.lay_do = nn.ModuleList(
             [create_dropout(layer_dropout) for _ in range(num_layers - 1)])

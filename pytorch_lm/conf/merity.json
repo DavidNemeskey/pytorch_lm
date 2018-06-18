@@ -18,7 +18,7 @@
                     }
                 }
             },
-            "embedding_dropout": "0.1s",
+            "embedding_dropout": "0.1",
             "output_dropout": "0.4s",
             "alpha": 2,
             "beta": 1
