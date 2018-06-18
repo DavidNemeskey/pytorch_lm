@@ -21,7 +21,7 @@ class LockedDropout(nn.Module):
         """
         if not self.training or not self.dropout:
             return x
-        m = x.data.new(x.size(0), 1, x.size(2)).bernoulli_(1 - self.dropout)
+        m = x.data.new_empty((x.size(0), 1, x.size(2))).bernoulli_(1 - self.dropout)
         mask = Variable(m, requires_grad=False) / (1 - self.dropout)
         mask = mask.expand_as(x)
         return mask * x
