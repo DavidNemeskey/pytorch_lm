@@ -168,7 +168,7 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
             elapsed = time.time() - start_time
             logger.info('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | '
                         'ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(
-                            epoch, batch, data_len // seq_len, lr,
+                            epoch, batch, data_len // num_steps.len, lr,
                             elapsed * 1000 / log_interval, cur_loss,
                             math.exp(cur_loss)))
             total_loss = 0

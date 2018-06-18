@@ -132,6 +132,7 @@ class GenericRnnModel(LMModel):
             else:
                 output = self.out_do(l_output)
             outputs.append(output)
+            input = output
 
         # raw_outputs and outputs are returned so that activation regularization
         # (see Merity et al. 2018) can be done
