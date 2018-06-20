@@ -101,7 +101,7 @@ class PytorchLstmLayer(nn.LSTM, InitHidden):
     def __init__(self, *args, **kwargs):
         kwargs.update(zip(self.keys, args))
         for key, value in self.fixed_values.items():
-            if key in kwargs:
+            if key in kwargs and kwargs[key] != value:
                 logging.getLogger('pytorch_lm.rnn.lstm').warn(
                     'Key {} is overridden in {} to {}'.format(
                         key, self.__class__.__name__, value))
