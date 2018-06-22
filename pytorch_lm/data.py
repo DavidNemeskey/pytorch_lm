@@ -5,6 +5,7 @@
 Taken from the word_language_model directory of the pytorch/examples repository.
 """
 
+from collections import Counter
 import os
 import random
 
@@ -16,11 +17,16 @@ class Dictionary(object):
     def __init__(self):
         self.word2idx = {}
         self.idx2word = []
+        self.counter = Counter()
+        self.total = 0
 
     def add_word(self, word):
         if word not in self.word2idx:
             self.idx2word.append(word)
             self.word2idx[word] = len(self.idx2word) - 1
+        token_id = self.word2idx[word]
+        self.counter[token_id] += 1
+        self.total += 1
         return self.word2idx[word]
 
     def __len__(self):
@@ -29,7 +35,7 @@ class Dictionary(object):
 
 class Corpus(object):
     """Loads the whole training (i.e. inc. valid, eval) corpus into memory."""
-    def __init__(self, path, shuffle_train=True):
+    def __init__(self, path, shuffle_train=False):
         self.dictionary = Dictionary()
         self.train = self.tokenize(os.path.join(path, 'train.txt'), shuffle_train)
         self.valid = self.tokenize(os.path.join(path, 'valid.txt'), False)
