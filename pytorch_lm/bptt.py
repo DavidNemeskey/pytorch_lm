@@ -4,7 +4,7 @@
 """BPTT (length) related classes."""
 
 from abc import ABC, abstractmethod
-import random
+import np
 
 from pytorch_lm.utils.config import create_object
 
@@ -38,8 +38,9 @@ class RandomNumSteps(NumSteps):
         self.s = s
 
     def num_steps(self):
-        base_len = self.len if random.random() <= self.p else self.len // 2
-        full_len = random.gauss(base_len, self.s)
+        # TODO test without np and gauss instead of normal
+        base_len = self.len if np.random.random() <= self.p else self.len // 2
+        full_len = np.random.normal(base_len, self.s)
         # Safeguard for the sequence being too short or long
         full_len = round(min(max(5, full_len), self.len + 10))
         return full_len, full_len / self.len
