@@ -219,8 +219,8 @@ def main():
     logger = setup_stream_logger(args.log_level)
 
     if args.seed:
-        torch.manual_seed(args.seed)
         np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
 
     if torch.cuda.is_available():
         if not args.cuda:
@@ -258,13 +258,13 @@ def main():
     if args.cuda:
         model.cuda()
 
-    ###############################################################################
-    # Training code
-    ###############################################################################
-
     # criterion = nn.CrossEntropyLoss()
     criterion = SequenceLoss(reduce_across_batch='mean',
                              reduce_across_timesteps='sum')
+
+    ###############################################################################
+    # Training code
+    ###############################################################################
 
     # Loop over epochs.
     best_val_loss = None
