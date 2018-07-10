@@ -7,7 +7,6 @@ import argparse
 from functools import partial
 import json
 import math
-import random
 import time
 
 import torch
@@ -221,7 +220,7 @@ def main():
 
     if args.seed:
         torch.manual_seed(args.seed)
-        random.seed(args.seed)
+        np.random.seed(args.seed)
 
     if torch.cuda.is_available():
         if not args.cuda:
