@@ -4,7 +4,7 @@
 """BPTT (length) related classes."""
 
 from abc import ABC, abstractmethod
-import np
+import numpy as np
 
 from pytorch_lm.utils.config import create_object
 
