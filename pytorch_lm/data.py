@@ -6,6 +6,7 @@ Taken from the word_language_model directory of the pytorch/examples repository.
 """
 
 from collections import Counter
+import logging
 import os
 import random
 
@@ -36,10 +37,15 @@ class Dictionary(object):
 class Corpus(object):
     """Loads the whole training (i.e. inc. valid, eval) corpus into memory."""
     def __init__(self, path, shuffle_train=False):
+        self.logger = logging.getLogger('pytorch_lm.data')
+        self.logger.info(
+            'Loading data files {}/{train,valid,test}.txt...'.format(path))
         self.dictionary = Dictionary()
         self.train = self.tokenize(os.path.join(path, 'train.txt'), shuffle_train)
         self.valid = self.tokenize(os.path.join(path, 'valid.txt'), False)
         self.test = self.tokenize(os.path.join(path, 'test.txt'), False)
+        self.logger.info('Files loaded {}successfully.'.format(
+            'and shuffled ' if shuffle_train else ''))
 
     def tokenize(self, path, shuffle):
         """Tokenizes a text file. Optionally shuffles the sentences."""

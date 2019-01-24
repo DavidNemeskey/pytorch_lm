@@ -241,6 +241,7 @@ def main():
     ###############################################################################
 
     config = read_config(args.config_file, vocab_size)
+    logger.info('Config: {}'.format(config))
     traind, validd, testd = getall(config, ['train', 'valid', 'test'])
     train_data = LMData(corpus.train, traind['batch_size'], args.cuda)
     valid_data = LMData(corpus.valid, validd['batch_size'], args.cuda)
