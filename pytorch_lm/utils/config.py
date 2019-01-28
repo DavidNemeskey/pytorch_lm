@@ -4,6 +4,7 @@
 from functools import partial
 import importlib
 import json
+import logging
 import os
 from pkg_resources import resource_exists, resource_filename
 
@@ -83,6 +84,9 @@ def __clsfn_args_kwargs(config, key, base_module=None, args=None, kwargs=None):
     Utility function called by both create_object and create_function. It
     implements the code that is common to both.
     """
+    logger = logging.getLogger('pytorch_lm.utils.config')
+    logger.config('config: {}, key: {}, base_module: {}, args: {}, kwargs: {}'.format(
+        config, key, base_module, args, kwargs))
     args = args or []
     kwargs = kwargs or {}
     module_name, _, object_name = config[key].rpartition('.')

@@ -39,7 +39,7 @@ class Corpus(object):
     def __init__(self, path, shuffle_train=False):
         self.logger = logging.getLogger('pytorch_lm.data')
         self.logger.info(
-            'Loading data files {}/{train,valid,test}.txt...'.format(path))
+            'Loading data files {}/{{train,valid,test}}.txt...'.format(path))
         self.dictionary = Dictionary()
         self.train = self.tokenize(os.path.join(path, 'train.txt'), shuffle_train)
         self.valid = self.tokenize(os.path.join(path, 'valid.txt'), False)
