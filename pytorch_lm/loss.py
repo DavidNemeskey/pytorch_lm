@@ -65,7 +65,8 @@ class SequenceLoss(L._WeightedLoss):
             raise ValueError('Invalid aggregation "{}"'.format(func_str))
 
     def forward(self, input, target):
-        L._assert_no_grad(target)
+        # Removed from Pytorch 0.4
+        # L._assert_no_grad(target)
         flat_input = input.view(-1, input.size(2))
         flat_targets = target.view(-1)
         flat_losses = F.cross_entropy(flat_input, flat_targets, self.weight,
