@@ -7,8 +7,10 @@ import argparse
 from functools import partial
 import json
 import math
+import os
 import time
 
+import numpy as np
 import torch
 from torch.autograd import Variable
 
@@ -63,7 +65,10 @@ def read_config(config_file, vocab_size):
     Reads the configuration file, and creates the model, optimizer and
     learning rate schedule objects used by the training process.
     """
-    with open(get_config_file(config_file)) as inf:
+    real_config_file = get_config_file(config_file)
+    logger.info('Reading config file {}...'.format(
+        os.path.abspath(real_config_file)))
+    with open(real_config_file) as inf:
         config = json.load(inf)
     train = config.pop('train', {})
     valid = config.pop('valid', {})

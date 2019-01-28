@@ -54,6 +54,11 @@ class LstmLayer(nn.Module, InitHidden):
         self.f_bias = self.forget_bias = forget_bias
         self.register_forward_pre_hook(LstmLayer.initialize_f)
 
+        logging.getLogger('pytorch_lm.rnn.lstm').info(
+            'LSTM layer {} with input size {} and hidden size {}, '
+            'forget bias {}'.format(self.__class__.__name__, self.input_size,
+                                    self.hidden_size, self.forget_bias))
+
     @classmethod
     def initialize_f(cls, module, _):
         """Initializes the forget gate."""
