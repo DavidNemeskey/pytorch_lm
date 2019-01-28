@@ -6,6 +6,12 @@ Loads a model and computes the PPL for each individual word, as well as the top
 N candidates, the rank of the real word, etc.
 """
 
+import argparse
+
+import torch
+
+from pytorch_lm.data import Corpus, LMData
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
