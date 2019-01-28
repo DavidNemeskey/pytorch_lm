@@ -1,3 +1,5 @@
+import logging
+
 import torch
 import torch.nn as nn
 
@@ -63,7 +65,10 @@ class GenericRnnModel(LMModel):
         layer_dropout = layer_dropout or dropout
         output_dropout = output_dropout or dropout
         # Embedding & output dropouts
-        self.emb_do = nn.Dropout(float(embedding_dropout))
+        if embedding_dropout:
+            self.emb_do = nn.Dropout(float(embedding_dropout))
+        else:
+            self.emb_do = None
         self.in_do = create_dropout(input_dropout)
         self.lay_do = nn.ModuleList(
             [create_dropout(layer_dropout) for _ in range(num_layers - 1)])
@@ -81,6 +86,18 @@ class GenericRnnModel(LMModel):
                               args=[in_size, out_size])
             )
         self.decoder = nn.Linear(self.embedding_size, vocab_size)
+
+        # Cannot make it self.logger, because then it cannot be pickled
+        logger = logging.getLogger('pytorch_lm.model')
+        logger.info(
+            '{} with vocab_size {}, num_layers {}, rnn class {}, '
+            'embedding size {}, hidden size {}, embedding DO {} '
+            'input DO {}, layer DO {}, output DO {}{}'
+            .format(self.__class__.__name__, vocab_size, num_layers, rnn['class'],
+                    self.embedding_size, hidden_size, embedding_dropout,
+                    input_dropout, layer_dropout, output_dropout,
+                    ', weights tied' if weight_tying else '')
+        )
 
         if weight_tying:
             # Linear.weight is transposed, so this will just work
@@ -156,20 +173,21 @@ class GenericRnnModel(LMModel):
 
 
 class SmallLstmModel(GenericRnnModel):
-    def __init__(self, vocab_size):
-        super(SmallLstmModel, self).__init__(vocab_size, 2, hidden_size=200)
+    def __init__(self, vocab_size, rnn=None):
+        super(SmallLstmModel, self).__init__(vocab_size, 2, hidden_size=200,
+                                             rnn=rnn)
 
 
 class MediumLstmModel(GenericRnnModel):
-    def __init__(self, vocab_size):
+    def __init__(self, vocab_size, rnn=None):
         super(MediumLstmModel, self).__init__(vocab_size, 2, hidden_size=650,
-                                              dropout=0.5)
+                                              dropout=0.5, rnn=rnn)
 
 
 class LargeLstmModel(GenericRnnModel):
-    def __init__(self, vocab_size):
+    def __init__(self, vocab_size, rnn=None):
         super(LargeLstmModel, self).__init__(vocab_size, 2, hidden_size=1500,
-                                             dropout=0.65)
+                                             dropout=0.65, rnn=rnn)
 
 
 class PressAndWolfModel(GenericRnnModel):
