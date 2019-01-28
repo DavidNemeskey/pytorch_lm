@@ -1,24 +1,29 @@
 {
-	"model": {
-		"class": "LargeLstmModel"
-	},
-	"optimizer": {
-		"class": "torch.optim.SGD",
-		"args": [1.0]
-	},
-	"initializer": {
-		"function": "uniform",
-		"kwargs": {"a": -0.04, "b": 0.04}
-	},
-	"lr_scheduler": {
-		"class": "ZarembaScheduleLR",
-		"kwargs": {
-			"lr_decay": 0.87,
-			"decay_delay": 14
-		}
-	},
-	"num_epochs": 55,
-	"batch_size": 20,
-	"num_steps": 35,
-	"grad_clip": 10
+    "model": {
+        "class": "LargeLstmModel",
+        "kwargs": {
+            "rnn": {
+                "class": "PytorchLstmLayer"
+            }
+        }
+    },
+    "optimizer": {
+        "class": "torch.optim.SGD",
+        "args": [1.0]
+    },
+    "initializer": {
+        "function": "uniform_",
+        "kwargs": {"a": -0.04, "b": 0.04}
+    },
+    "lr_scheduler": {
+        "class": "ZarembaScheduleLR",
+        "kwargs": {
+            "lr_decay": 0.87,
+            "decay_delay": 14
+        }
+    },
+    "num_epochs": 55,
+    "batch_size": 20,
+    "num_steps": 35,
+    "grad_clip": 10
 }

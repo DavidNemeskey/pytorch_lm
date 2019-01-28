@@ -5,6 +5,8 @@
 Taken from the word_language_model directory of the pytorch/examples repository.
 """
 
+from collections import Counter
+import logging
 import os
 import random
 
@@ -16,11 +18,16 @@ class Dictionary(object):
     def __init__(self):
         self.word2idx = {}
         self.idx2word = []
+        self.counter = Counter()
+        self.total = 0
 
     def add_word(self, word):
         if word not in self.word2idx:
             self.idx2word.append(word)
             self.word2idx[word] = len(self.idx2word) - 1
+        token_id = self.word2idx[word]
+        self.counter[token_id] += 1
+        self.total += 1
         return self.word2idx[word]
 
     def __len__(self):
@@ -28,11 +35,17 @@ class Dictionary(object):
 
 
 class Corpus(object):
-    def __init__(self, path, shuffle_train=True):
+    """Loads the whole training (i.e. inc. valid, eval) corpus into memory."""
+    def __init__(self, path, shuffle_train=False):
+        self.logger = logging.getLogger('pytorch_lm.data')
+        self.logger.info(
+            'Loading data files {}/{{train,valid,test}}.txt...'.format(path))
         self.dictionary = Dictionary()
         self.train = self.tokenize(os.path.join(path, 'train.txt'), shuffle_train)
         self.valid = self.tokenize(os.path.join(path, 'valid.txt'), False)
         self.test = self.tokenize(os.path.join(path, 'test.txt'), False)
+        self.logger.info('Files loaded {}successfully.'.format(
+            'and shuffled ' if shuffle_train else ''))
 
     def tokenize(self, path, shuffle):
         """Tokenizes a text file. Optionally shuffles the sentences."""
@@ -51,53 +64,92 @@ class Corpus(object):
         return np.array([wid for sentence in text for wid in sentence])
 
 
-def batchify(data, bsz, cuda):
+class LMData(object):
     """
-    Starting from sequential data, batchify arranges the dataset into rows.
-    For instance, with the alphabet as the sequence and batch size 4, we'd get
-    ┌ a b c d e f ┐
-    │ g h i j k l │
-    │ m n o p q r │
-    │ s t u v w x ┘.
-    These rows are treated as independent by the model, which means that the
-    dependence of e. g. 'g' on 'f' can not be learned, but allows more efficient
-    batch processing.
+    Takes a Corpus and creates (batched) LM training data from it. This class
+    is Pytorch-specific.
     """
-    # Work out how cleanly we can divide the dataset into bsz parts.
-    nbatch = len(data) // bsz
-    rbatch = 20 * ((nbatch - 1) // 20) + 1
-    # Trim off any extra elements that wouldn't cleanly fit (remainders).
-    data = data[:rbatch * bsz]
-    # Evenly divide the data across the bsz batches.
-    data = data.reshape(bsz, -1)
-    data = torch.from_numpy(data).long().contiguous()
-    if cuda:
-        data = data.cuda()
-    return data
+    def __init__(self, text, batch_size, cuda):
+        """
+        Batchifies text.
 
+        Arguments:
+        - text: text which has already been tokenized, and words
+                converted to int ids
+        - batch_size: the batch size
+        - cuda: whether the tensors should be created on the GPU or not
+        """
+        self.batch_size = batch_size
+        self.cuda = cuda
+        self.data = self.batchify(text)
 
-def get_batch(source, i, num_steps, evaluation=False):
-    """
-    get_batch subdivides the source data into chunks of length bptt.
-    If source is equal to the example output of the batchify function, with
-    a bptt-limit of 2, we'd get the following two Variables for i = 0:
-    ┌ a b ┐ ┌ b c ┐
-    │ g h │ │ h i │
-    │ g n │ │ n o │
-    └ s t ┘ └ t u ┘
-    Note that despite the name of the function, the subdivison of data is not
-    done along the batch dimension (i.e. dimension 0), since that was handled
-    by the batchify function. The chunks are along dimension 1, corresponding
-    to the seq_len dimension in the Lstm class, but unlike the LSTM in Pytorch.
-    """
-    seq_len = min(num_steps, source.size(1) - 1 - i)
-    # TODO can we no_grad target as well?
-    data_chunk = source[:, i:i+seq_len].contiguous()
-    target_chunk = source[:, i+1:i+1+seq_len].contiguous()  # .view(-1))
-    if evaluation:
-        with torch.no_grad():
-            data = Variable(data_chunk)
-    else:
-        data = Variable(data_chunk)
-    target = Variable(target_chunk)  # .view(-1))
-    return data, target
+    def batchify(self, text):
+        """
+        Starting from sequential data, batchify arranges the dataset into rows.
+        For instance, with the alphabet as the sequence and batch size 4, we'd
+        get
+        ┌ a b c d e f ┐
+        │ g h i j k l │
+        │ m n o p q r │
+        │ s t u v w x ┘.
+        These rows are treated as independent by the model, which means that
+        the dependence of e. g. 'g' on 'f' can not be learned, but allows more
+        efficient batch processing.
+        """
+        # Work out how cleanly we can divide the dataset into bsz parts.
+        nbatch = len(text) // self.batch_size
+        # Trim off any extra elements that wouldn't cleanly fit (remainders).
+        data = text[:nbatch * self.batch_size]
+        # Evenly divide the data across the bsz batches.
+        data = data.reshape(self.batch_size, -1)
+        data = torch.from_numpy(data).long().contiguous()
+        if self.cuda:
+            data = data.cuda()
+        return data
+
+    def _get_batches(self, num_steps, evaluation):
+        """
+        Does the actual splitting of the data into minibatches. Called by
+        get_batches().
+        """
+        # -1, because we need at least 2 items (input, output)
+        for i in range(0, self.data.size(1) - 1, num_steps):
+            seq_len = min(num_steps, self.data.size(1) - 1 - i)
+            data_chunk = self.data[:, i:i+seq_len].contiguous()
+            target_chunk = self.data[:, i+1:i+1+seq_len].contiguous()  # .view(-1))
+            yield data_chunk, target_chunk
+
+    def get_batches(self, num_steps, evaluation=False):
+        """
+        get_minibatch iterates through the batchified data, returning a chunk of
+        length num_steps. Continuing the example from the batchify method, with
+        num_steps = 3, the following two Variables are returned on the first
+        call:
+        ┌ a b c ┐ ┌ b c d ┐
+        │ g h i │ │ h i j │
+        │ g n o │ │ n o p │
+        └ s t u ┘ └ t u v ┘
+        The chunks are along dimension 1, corresponding to the seq_len
+        dimension in the Lstm class, but unlike the LSTM in Pytorch.
+
+        Returns the two tensors above, and the learning rate ratio if
+        ``evaluate`` is ``False``.
+
+        Arguments:
+        - num_steps: the BPTT sequencer object
+        - evaluation: whether the minibatch will be used in evaluation (i.e. it
+                      doesn't need gradients) or not
+        """
+        seq_len, lr_ratio = num_steps.num_steps()
+        for data_chunk, target_chunk in self._get_batches(seq_len, evaluation):
+            # TODO can we no_grad target as well?
+            if evaluation:
+                with torch.no_grad():
+                    data = Variable(data_chunk)
+            else:
+                data = Variable(data_chunk)
+            target = Variable(target_chunk)  # .view(-1))
+            if not evaluation:
+                yield data, target, lr_ratio
+            else:
+                yield data, target

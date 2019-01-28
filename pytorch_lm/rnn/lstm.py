@@ -3,47 +3,61 @@
 
 """Implements a very basic version of LSTM."""
 
+import logging
+
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
-from pytorch_lm.dropout import StatelessDropout, StatefulDropout
-from pytorch_lm.utils.config import create_object
+from pytorch_lm.dropout import create_hidden_dropout
+from pytorch_lm.utils.lang import public_dict
 
 
-class LstmCell(nn.Module):
+class InitHidden(object):
+    """
+    Provides init_hidden to subclasses. Requires that self.hidden size is
+    available.
+    """
+    def init_hidden(self, batch_size):
+        """Returns the Variables for the hidden states."""
+        weight = next(self.parameters()).data
+        dims = (1, batch_size, self.hidden_size)
+        ret = (Variable(weight.new_full(dims, 0)),
+               Variable(weight.new_full(dims, 0)))
+        return ret
+
+
+class LstmLayer(nn.Module, InitHidden):
     """
     A reimplementation of the LSTM cell. (Actually, a layer of LSTM cells.)
-    It takes 176s to run the time sequence prediction example; the built-in
-    LSTMCell takes 133s. So it's slower, but at least transparent.
 
-    As a reminder: input size is batch_size x input_features.
+    As a reminder: input size is batch_size x seq_len x input_features.
     """
-    def __init__(self, input_size, hidden_size, dropout=0, forget_bias=None):
+    def __init__(self, input_size, hidden_size, forget_bias=1):
         """
         Args:
             - input_size: the number of input features
             - hidden_size: the number of cells
-            - dropout: the dropout value (and type) to use. The place where
-                       dropout is applied depends on the subclass.
-            - forget_bias: the value of the forget bias
+            - forget_bias: the value of the forget bias [1]
         """
-        super(LstmCell, self).__init__()
+        super(LstmLayer, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.dropout = dropout
-
-        self.do = self.create_dropouts()
-        for i, do in enumerate(self.do):
-            self.add_module('do{}'.format(i), do)
 
         self.w_i = nn.Parameter(torch.Tensor(input_size, 4 * hidden_size))
         self.w_h = nn.Parameter(torch.Tensor(hidden_size, 4 * hidden_size))
         self.b = nn.Parameter(torch.Tensor(4 * hidden_size))
 
         # f_bias is deleted by the pre-format hook so that it runs only once
+        # The forget gate is initialized before the first forward call,
+        # because the weights are initialized after __init__()
         self.f_bias = self.forget_bias = forget_bias
-        self.register_forward_pre_hook(LstmCell.initialize_f)
+        self.register_forward_pre_hook(LstmLayer.initialize_f)
+
+        logging.getLogger('pytorch_lm.rnn.lstm').info(
+            'LSTM layer {} with input size {} and hidden size {}, '
+            'forget bias {}'.format(self.__class__.__name__, self.input_size,
+                                    self.hidden_size, self.forget_bias))
 
     @classmethod
     def initialize_f(cls, module, _):
@@ -53,69 +67,66 @@ class LstmCell(nn.Module):
             b_f.fill_(module.f_bias)
             module.f_bias = None
 
-    def create_dropouts(self):
-        """
-        Creates the ``list`` of :class:`Dropout` objects used by the cell.
-        This is one method to be implemented.
-        """
-        raise NotImplementedError()
-
     def forward(self, input, hidden):
+        """
+        Runs the layer on the sequence input. Calls forward_one in a loop.
+        """
+        outputs = []
+        seq_dim = 1  # if self.batch_first else 0
+        h_t, c_t = (h.squeeze(0) for h in hidden)
+
+        # chunk() cuts batch_size x 1 x input_size chunks from input
+        for input_t in input.chunk(input.size(1), dim=seq_dim):
+            values = input_t.squeeze(seq_dim)  # From input to output
+            h_t, c_t = self.forward_one(values, (h_t, c_t))
+            values = h_t
+            outputs.append(values)
+
+        return (torch.stack(outputs, seq_dim),
+                (h_t.unsqueeze(0), c_t.unsqueeze(0)))
+
+    def forward_one(self, input, hidden):
         """Of course, forward must be implemented in subclasses."""
         raise NotImplementedError()
 
-    def save_parameters(self, out_dict=None, prefix=''):
-        """
-        Saves the parameters into a dictionary that can later be e.g. savez'd.
-        If prefix is specified, it is prepended to the names of the parameters,
-        allowing for hierarchical saving / loading of parameters of a composite
-        model.
-        """
-        if out_dict is None:
-            out_dict = {}
-        for name, p in self.named_parameters():
-            out_dict[prefix + name] = p.data.cpu().numpy()
-        return out_dict
-
-    def load_parameters(self, data_dict, prefix=''):
-        """Loads the parameters saved by save_parameters()."""
-        is_cuda = self.w_i.is_cuda
-        for name, value in data_dict.items():
-            real_name = name[len(prefix):]
-            t = torch.from_numpy(value)
-            if is_cuda:
-                t = t.cuda()
-            setattr(self, real_name, nn.Parameter(t))
-
-    def init_hidden(self, batch_size=0, np_arrays=None):
-        """
-        Returns the Variables for the hidden states. If batch_size is specified,
-        all states are initialized to zero. If np_arrays is, it should be a
-        2-tuple of numpy arrays, which are wrapped in Variables.
-        """
-        if batch_size and np_arrays:
-            raise ValueError('Only one of {batch_size, np_arrays) is allowed.')
-        if not batch_size and not np_arrays:
-            raise ValueError('Either batch_size or np_arrays must be specified.')
-
-        if batch_size != 0:
-            ret = (Variable(torch.Tensor(batch_size, self.hidden_size).zero_().type(self.w_i.type())),
-                   Variable(torch.Tensor(batch_size, self.hidden_size).zero_().type(self.w_i.type())))
-        elif np_arrays is not None:
-            ret = (Variable(torch.from_numpy(np_arrays[0]).type(self.w_i.type())),
-                   Variable(torch.from_numpy(np_arrays[1]).type(self.w_i.type())))
-        return ret
+    def __repr__(self):
+        return '{}({})'.format(self.__class__.__name__, public_dict(self))
 
 
-class ZarembaLstmCell(LstmCell):
-    """Following Zaremba et al. (2014), dropout is applied on the input tensor."""
-    def create_dropouts(self):
-        return [StatelessDropout(self.dropout)]
+class PytorchLstmLayer(nn.LSTM, InitHidden):
+    """
+    Wraps the PyTorch LSTM object. Only a few parameters are supported; most
+    have fixed values.
+    """
+    keys = ['input_size', 'hidden_size', 'num_layers', 'bias',
+            'batch_first', 'dropout', 'bidirectional']
+    fixed_values = {'num_layers': 1, 'batch_first': True,
+                    'dropout': 0, 'bidirectional': False}
 
-    def forward(self, input, hidden):
+    def __init__(self, *args, **kwargs):
+        kwargs.update(zip(self.keys, args))
+        for key, value in self.fixed_values.items():
+            if key in kwargs and kwargs[key] != value:
+                logging.getLogger('pytorch_lm.rnn.lstm').warn(
+                    'Key {} is overridden in {} to {}'.format(
+                        key, self.__class__.__name__, value))
+            kwargs[key] = value
+        try:
+            super(PytorchLstmLayer, self).__init__(
+                kwargs.pop('input_size'), kwargs.pop('hidden_size'), **kwargs)
+        except KeyError as ke:
+            raise TypeError(
+                '__init__() missing 1 required positional argument: {}'.format(ke))
+
+
+class DefaultLstmLayer(LstmLayer):
+    """
+    The default LSTM implementation. No dropout, as that is handled outside.
+    """
+    def forward_one(self, input, hidden):
         h_t, c_t = hidden
 
-        ifgo = self.do[0](input).matmul(self.w_i) + h_t.matmul(self.w_h)
+        ifgo = input.matmul(self.w_i) + h_t.matmul(self.w_h)
         ifgo += self.b
 
         i, f, g, o = ifgo.chunk(4, 1)
@@ -129,15 +140,43 @@ class ZarembaLstmCell(LstmCell):
         return h_t, c_t
 
 
-class MoonLstmCell(LstmCell):
+class DropoutLstmLayer(LstmLayer):
+    """An LstmLayer with H->H dropout."""
+    def __init__(self, input_size, hidden_size, forget_bias=1, hh_dropout=0):
+        super(DropoutLstmLayer, self).__init__(
+            input_size, hidden_size, forget_bias)
+        self.hh_dropout = hh_dropout
+
+        self.do = self.create_dropouts()
+        for i, do in enumerate(self.do):
+            self.add_module('do{}'.format(i), do)
+
+    def create_dropouts(self):
+        """
+        Creates the ``list`` of :class:`Dropout` objects used by the cell.
+        This is one method to be implemented; this default implementation
+        returns a single :class:`Dropout` object created with
+        :func:`create_dropout`.
+        """
+        return [create_hidden_dropout(self.hh_dropout)]
+
+    def forward(self, inputs, hidden):
+        """
+        Runs the layer on the sequence inputs. Initializes the :class:`Dropout`
+        objects and calls forward_one in a loop.
+        """
+        for do in self.do:
+            do.reset_noise()
+
+        return super(DropoutLstmLayer, self).forward(inputs, hidden)
+
+
+class MoonLstmLayer(DropoutLstmLayer):
     """
     Following Moon et al. (2015), dropout (with a per-sequence mask) is applied
     on c_t. Note: this sucks.
     """
-    def create_dropouts(self):
-        return [StatefulDropout(self.dropout)]
-
-    def forward(self, input, hidden):
+    def forward_one(self, input, hidden):
         h_t, c_t = hidden
 
         ifgo = input.matmul(self.w_i) + h_t.matmul(self.w_h)
@@ -154,19 +193,15 @@ class MoonLstmCell(LstmCell):
         return h_t, c_t
 
 
-class TiedGalLstmCell(LstmCell):
+class TiedGalLstmLayer(LstmLayer):
     """
     Following Gal and Ghahramani (2016), per-sequence dropout is applied on
     both the input and h_t. Also known as VD-LSTM. With tied gates.
     """
-    def create_dropouts(self):
-        return [StatefulDropout(self.dropout)
-                for _ in range(2)]
-
-    def forward(self, input, hidden):
+    def forward_one(self, input, hidden):
         h_t, c_t = hidden
 
-        ifgo = self.do[0](input).matmul(self.w_i) + self.do[1](h_t).matmul(self.w_h)
+        ifgo = input.matmul(self.w_i) + self.do[0](h_t).matmul(self.w_h)
         ifgo += self.b
 
         i, f, g, o = ifgo.chunk(4, 1)
@@ -180,55 +215,41 @@ class TiedGalLstmCell(LstmCell):
         return h_t, c_t
 
 
-class UntiedGalLstmCell(LstmCell):
+class UntiedGalLstmLayer(LstmLayer):
     """
     Following Gal and Ghahramani (2016), per-sequence dropout is applied on
     both the input and h_t. Also known as VD-LSTM. With untied weights.
     """
     def create_dropouts(self):
-        return [StatefulDropout(self.dropout)
-                for _ in range(8)]
+        return [create_hidden_dropout(self.hh_dropout) for _ in range(4)]
 
-    def forward(self, input, hidden):
+    def forward_one(self, input, hidden):
         h_t, c_t = hidden
 
         w_ii, w_if, w_ig, w_io = self.w_i.chunk(4, 1)
         w_hi, w_hf, w_hg, w_ho = self.w_h.chunk(4, 1)
         b_i, b_f, b_g, b_o = self.b.chunk(4, 0)
 
-        i = torch.sigmoid(self.do[0](input).matmul(w_ii) +
-                          self.do[1](h_t).matmul(w_hi) + b_i)
-        f = torch.sigmoid(self.do[2](input).matmul(w_if) +
-                          self.do[3](h_t).matmul(w_hf) + b_f)
-        g = torch.tanh(self.do[4](input).matmul(w_ig) +
-                       self.do[5](h_t).matmul(w_hg) + b_g)
-        o = torch.sigmoid(self.do[6](input).matmul(w_io) +
-                          self.do[7](h_t).matmul(w_ho) + b_o)
+        i = torch.sigmoid(input.matmul(w_ii) +
+                          self.do[0](h_t).matmul(w_hi) + b_i)
+        f = torch.sigmoid(input.matmul(w_if) +
+                          self.do[1](h_t).matmul(w_hf) + b_f)
+        g = torch.tanh(input.matmul(w_ig) +
+                       self.do[2](h_t).matmul(w_hg) + b_g)
+        o = torch.sigmoid(input.matmul(w_io) +
+                          self.do[3](h_t).matmul(w_ho) + b_o)
         c_t = f * c_t + i * g
         h_t = o * torch.tanh(c_t)
 
         return h_t, c_t
 
 
-class SemeniutaLstmCell(LstmCell):
+class SemeniutaLstmLayer(LstmLayer):
     """Following Semeniuta et al. (2016), dropout is applied on g_t."""
-    def __init__(self, input_size, hidden_size, dropout=0, per_sequence=False,
-                 input_do=0):
-        self.per_sequence = per_sequence
-        self.input_do = input_do
-        super(SemeniutaLstmCell, self).__init__(input_size, hidden_size, dropout)
-
-    def create_dropouts(self):
-        if self.per_sequence:
-            update_do = StatefulDropout(self.dropout)
-        else:
-            update_do = StatelessDropout(self.dropout)
-        return [update_do, StatelessDropout(self.input_do)]
-
-    def forward(self, input, hidden):
+    def forward_one(self, input, hidden):
         h_t, c_t = hidden
 
-        ifgo = self.do[1](input).matmul(self.w_i) + h_t.matmul(self.w_h)
+        ifgo = input.matmul(self.w_i) + h_t.matmul(self.w_h)
         ifgo += self.b
 
         i, f, g, o = ifgo.chunk(4, 1)
@@ -242,23 +263,16 @@ class SemeniutaLstmCell(LstmCell):
         return h_t, c_t
 
 
-class MerityLstmCell(LstmCell):
+class MerityLstmLayer(LstmLayer):
     """
     Following Merity et al. (2018): uses DropConnect instead of Dropout, on
     the hidden-to-hidden matrices. The parameter of the DropConnect probability
     is still called dropout, unfortunately.
     """
-    def __init__(self, input_size, hidden_size, dropout=0, input_do=0):
-        self.input_do = input_do
-        super(MerityLstmCell, self).__init__(input_size, hidden_size, dropout)
-
-    def create_dropouts(self):
-        return [StatefulDropout(self.dropout), StatefulDropout(self.input_do)]
-
-    def forward(self, input, hidden):
+    def forward_one(self, input, hidden):
         h_t, c_t = hidden
 
-        ifgo = self.do[1](input).matmul(self.w_i) + h_t.matmul(self.do[0](self.w_h))
+        ifgo = input.matmul(self.w_i) + h_t.matmul(self.do[0](self.w_h))
         ifgo += self.b
 
         i, f, g, o = ifgo.chunk(4, 1)
@@ -266,79 +280,7 @@ class MerityLstmCell(LstmCell):
         f = torch.sigmoid(f)
         g = torch.tanh(g)
         o = torch.sigmoid(o)
-        c_t = f * c_t + i * self.do[0](g)
+        c_t = f * c_t + i * g
         h_t = o * torch.tanh(c_t)
 
         return h_t, c_t
-
-
-class Lstm(nn.Module):
-    """
-    Several layers of LstmCells. Input is batch_size x num_steps x input_size,
-    which is different from the Pytorch LSTM (the first two dimensions are
-    swapped).
-
-    If dropout is specified, it is applied on the output. So for L layers,
-    dropout is applied L + 1 times (once on the input in each layer + once on
-    the final output).
-    """
-    def __init__(self, input_size, hidden_size, num_layers, dropout=0,
-                 cell_data=None):
-        super(Lstm, self).__init__()
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-
-        if not cell_data:
-            cell_data = {'class': 'ZarembaLstmCell', 'args': [], 'kwargs': {}}
-
-        self.layers = [create_object(cell_data, base_module='pytorch_lm.rnn',
-                                     args=[input_size if not l else hidden_size,
-                                           hidden_size, dropout])
-                       for l in range(num_layers)]
-        for l, layer in enumerate(self.layers):
-            self.add_module('Layer_{}'.format(l), layer)
-
-    def forward(self, input, hiddens):
-        outputs = []
-
-        # To initialize per-sequence dropout
-        for l in self.layers:
-            for do in l.do:
-                do.reset_noise()
-
-        # chunk() cuts batch_size x 1 x input_size chunks from input
-        for input_t in input.chunk(input.size(1), dim=1):
-            values = input_t.squeeze(1)  # From input to output
-            for l in range(self.num_layers):
-                h_t, c_t = self.layers[l](values, hiddens[l])
-                values = h_t
-                hiddens[l] = h_t, c_t
-            outputs.append(values)
-        outputs = torch.stack(outputs, 1)
-        return outputs, hiddens
-
-    def init_hidden(self, batch_size):
-        return [self.layers[l].init_hidden(batch_size)
-                for l in range(self.num_layers)]
-
-    def save_parameters(self, out_dict=None, prefix=''):
-        """
-        Saves the parameters into a dictionary that can later be e.g. savez'd.
-        If prefix is specified, it is prepended to the names of the parameters,
-        allowing for hierarchical saving / loading of parameters of a composite
-        model.
-        """
-        if out_dict is None:
-            out_dict = {}
-        for l, layer in enumerate(self.layers):
-            self.layers[l].save_parameters(
-                out_dict, prefix + 'Layer_' + str(l) + '/')
-        return out_dict
-
-    def load_parameters(self, data_dict, prefix=''):
-        """Loads the parameters saved by save_parameters()."""
-        for l, layer in enumerate(self.layers):
-            key = prefix + 'Layer_' + str(l) + '/'
-            part_dict = {k: v for k, v in data_dict.items() if k.startswith(key)}
-            layer.load_parameters(part_dict, key)

@@ -5,16 +5,21 @@
 
 import argparse
 from functools import partial
+import json
 import math
+import os
 import time
 
+import numpy as np
 import torch
 from torch.autograd import Variable
 
-from pytorch_lm.data import Corpus, batchify, get_batch
+from pytorch_lm.bptt import create_num_steps
+from pytorch_lm.utils.config import create_object, create_function
+from pytorch_lm.utils.config import get_config_file
+from pytorch_lm.data import Corpus, LMData
 from pytorch_lm.loss import SequenceLoss
-from pytorch_lm.lr_schedule import lr_step_at_epoch_start
-from pytorch_lm.utils.config import read_config
+from pytorch_lm.lr_schedule import lr_step_at_epoch_start, ConstantLR
 from pytorch_lm.utils.lang import getall
 from pytorch_lm.utils.logging import setup_stream_logger
 
@@ -55,6 +60,65 @@ def parse_arguments():
     return parser.parse_args()
 
 
+def read_config(config_file, vocab_size):
+    """
+    Reads the configuration file, and creates the model, optimizer and
+    learning rate schedule objects used by the training process.
+    """
+    real_config_file = get_config_file(config_file)
+    logger.info('Reading config file {}...'.format(
+        os.path.abspath(real_config_file)))
+    with open(real_config_file) as inf:
+        config = json.load(inf)
+    train = config.pop('train', {})
+    valid = config.pop('valid', {})
+    test = config.pop('test', {})
+
+    # Copy all keys from the main dictionary to the sub-dictionaries, but do
+    # not overwrite keys already there
+    for k, v in config.items():
+        for d in [train, valid, test]:
+            if k not in d:
+                d[k] = v
+
+    # Now for the model & stuff (train only)
+    try:
+        train['model'] = create_object(train['model'],
+                                       base_module='pytorch_lm.model',
+                                       args=[vocab_size])
+    except KeyError:
+        raise KeyError('Missing configuration key: "model".')
+    try:
+        train['optimizer'] = create_object(train['optimizer'],
+                                           base_module='torch.optim',
+                                           args=[train['model'].parameters()])
+    except KeyError:
+        raise KeyError('Missing configuration key: "optimizer".')
+    try:
+        train['initializer'] = create_function(train['initializer'],
+                                               base_module='torch.nn.init')
+    except KeyError:
+        raise KeyError('Missing configuration key: "initializer".')
+    if 'bias_initializer' in train:
+        train['bias_initializer'] = create_function(train['bias_initializer'],
+                                                    base_module='torch.nn.init')
+    if 'lr_scheduler' in train:
+        train['lr_scheduler'] = create_object(train['lr_scheduler'],
+                                              base_module='pytorch_lm.lr_schedule',
+                                              args=[train['optimizer']])
+    else:
+        train['lr_scheduler'] = ConstantLR(train['optimizer'])
+
+    full_config = {'train': train, 'valid': valid, 'test': test}
+
+    # Initialization of stuff in train, valid and test
+    for sub_config in full_config.values():
+        if 'num_steps' in sub_config:
+            sub_config['num_steps'] = create_num_steps(sub_config['num_steps'])
+
+    return full_config
+
+
 def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     optimizer, batch_size, num_steps, grad_clip = getall(
         config, ['optimizer', 'batch_size', 'num_steps', 'grad_clip'])
@@ -65,26 +129,31 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
     lr = optimizer.param_groups[0]['lr']
     total_loss = 0
     start_time = time.time()
-    data_len = train_data.size(1)
+    data_len = train_data.data.size(1)
     hidden = model.init_hidden(batch_size)
 
-    for batch, i in enumerate(range(0, data_len - 1, num_steps)):
-        data, targets = get_batch(train_data, i, num_steps)
-
+    for batch, (data, targets, lr_ratio) in enumerate(train_data.get_batches(num_steps)):
+        seq_len = targets.size(1)
         # def to_str(f):
         #     return corpus.dictionary.idx2word[f]
 
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
+
+        # TODO encapsulate this somewhere
+        # For random BPTT length
+        optimizer.param_groups[0]['lr'] = lr * lr_ratio
+
         hidden = repackage_hidden(hidden)
         model.zero_grad()
+
         output, hidden = model(data, hidden)
         loss = criterion(output, targets) + model.loss_regularizer()
         loss.backward()
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         if grad_clip:
-            torch.nn.utils.clip_grad_norm(model.parameters(), grad_clip)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
         # for name, p in model.named_parameters():
         #     print('GRAD', name, p.grad.data)
 
@@ -92,7 +161,10 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
         # for name, p in model.named_parameters():
         #     p.data.add_(-1 * lr, p.grad.data)
 
-        total_loss += loss.data / num_steps
+        # For random BPTT length
+        optimizer.param_groups[0]['lr'] = lr
+
+        total_loss += loss.data / seq_len
 
         if batch % log_interval == 0 and batch > 0:
             # cur_loss = total_loss[0] / log_interval
@@ -100,7 +172,7 @@ def train(model, corpus, config, train_data, criterion, epoch, log_interval):
             elapsed = time.time() - start_time
             logger.info('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | '
                         'ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(
-                            epoch, batch, data_len // num_steps, lr,
+                            epoch, batch, data_len // num_steps.len, lr,
                             elapsed * 1000 / log_interval, cur_loss,
                             math.exp(cur_loss)))
             total_loss = 0
@@ -111,10 +183,10 @@ def evaluate(model, corpus, data_source, criterion, batch_size, num_steps):
     # Turn on evaluation mode which disables dropout.
     model.eval()
     total_loss = 0
-    data_len = data_source.size(1)
+    data_len = data_source.data.size(1)
     hidden = model.init_hidden(batch_size)
-    for i in range(0, data_len - 1, num_steps):
-        data, targets = get_batch(data_source, i, num_steps, evaluation=True)
+    # for i in range(0, data_len - 1, num_steps):
+    for data, targets in data_source.get_batches(num_steps, evaluation=True):
         output, hidden = model(data, hidden)
         cost = criterion(output, targets).data
         total_loss += cost
@@ -125,7 +197,7 @@ def evaluate(model, corpus, data_source, criterion, batch_size, num_steps):
 
 def repackage_hidden(h):
     """Wraps hidden states in new Variables, to detach them from their history."""
-    if type(h) == Variable:
+    if isinstance(h, Variable):
         return Variable(h.data)
     else:
         return [repackage_hidden(v) for v in h]
@@ -137,7 +209,7 @@ def initialize_model(model, initializer, bias_initializer=None):
     latter defaults to constant zero.
     """
     if not bias_initializer:
-        bias_initializer = partial(torch.nn.init.constant, val=0)
+        bias_initializer = partial(torch.nn.init.constant_, val=0)
     for name, p in model.named_parameters():
         if name.lower().endswith('bias'):
             bias_initializer(p.data)
@@ -151,7 +223,9 @@ def main():
     global logger
     logger = setup_stream_logger(args.log_level)
 
-    torch.manual_seed(args.seed)
+    if args.seed:
+        np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
 
     if torch.cuda.is_available():
         if not args.cuda:
@@ -172,14 +246,17 @@ def main():
     ###############################################################################
 
     config = read_config(args.config_file, vocab_size)
+    logger.info('Config: {}'.format(config))
     traind, validd, testd = getall(config, ['train', 'valid', 'test'])
-    train_data = batchify(corpus.train, traind['batch_size'], args.cuda)
-    valid_data = batchify(corpus.valid, validd['batch_size'], args.cuda)
-    test_data = batchify(corpus.test, testd['batch_size'], args.cuda)
+    train_data = LMData(corpus.train, traind['batch_size'], args.cuda)
+    valid_data = LMData(corpus.valid, validd['batch_size'], args.cuda)
+    test_data = LMData(corpus.test, testd['batch_size'], args.cuda)
 
     model, optimizer, initializer, bias_initializer, lr_scheduler = getall(
         traind, ['model', 'optimizer', 'initializer',
                  'bias_initializer', 'lr_scheduler'])
+
+    logger.info('Model object created: {}'.format(model))
 
     initialize_model(model, initializer)
 
@@ -187,13 +264,13 @@ def main():
     if args.cuda:
         model.cuda()
 
-    ###############################################################################
-    # Training code
-    ###############################################################################
-
     # criterion = nn.CrossEntropyLoss()
     criterion = SequenceLoss(reduce_across_batch='mean',
                              reduce_across_timesteps='sum')
+
+    ###############################################################################
+    # Training code
+    ###############################################################################
 
     # Loop over epochs.
     best_val_loss = None

@@ -1,15 +1,27 @@
 {
     "model": {
-        "class": "GenericRnnModel",
+        "class": "MerityModel",
         "kwargs": {
             "hidden_size": 1150,
-            "num_layers": 3,
-            "dropout": "0.3s",
-            "cell_data": {
-                "class": "MerityLstmCell"
+            "embedding_size": 400,
+            "rnn": {
+                "class": "Lstm",
+                "kwargs": {
+                    "num_layers": 3,
+                    "input_dropout": "0.4s",
+                    "layer_dropout": "0.3s",
+                    "cell_data": {
+                        "class": "MerityLstmCell",
+                        "kwargs": {
+                            "dropconnect": "0.5s"
+                        }
+                    }
+                }
             },
-            "embedding_dropout": "0.1s",
-            "output_dropout": "0.4s"
+            "embedding_dropout": "0.1",
+            "output_dropout": "0.4s",
+            "alpha": 2,
+            "beta": 1
         }
     },
     "optimizer": {
@@ -17,7 +29,7 @@
         "args": [1.0]
     },
     "initializer": {
-        "function": "uniform",
+        "function": "uniform_",
         "kwargs": {"a": -0.1, "b": 0.1}
     },
     "lr_scheduler": {
@@ -29,7 +41,13 @@
     },
     "num_epochs": 750,
     "batch_size": 40,
-    "num_steps": 35,
-    "grad_clip": 5
+    "num_steps": {
+        "class": "RandomNumSteps",
+        "kwargs": {
+            "num_steps": 70,
+            "p": 0.95,
+            "s": 5
+        }
+    },
+    "grad_clip": 0.25
 }
-

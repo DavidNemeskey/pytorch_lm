@@ -3,10 +3,12 @@
 
 """Package for all the different RNN architectures."""
 
-from .lstm import Lstm, ZarembaLstmCell, MoonLstmCell, TiedGalLstmCell
-from .lstm import UntiedGalLstmCell, SemeniutaLstmCell
+from .lstm import PytorchLstmLayer, DefaultLstmLayer, MoonLstmLayer
+from .lstm import TiedGalLstmLayer, UntiedGalLstmLayer, SemeniutaLstmLayer
+from .lstm import MerityLstmLayer
 from .rhn import Rhn, RhnLin, RhnLinTCTied, OfficialRhn
 
-__all__ = [Lstm, ZarembaLstmCell, MoonLstmCell, TiedGalLstmCell,
-           UntiedGalLstmCell, SemeniutaLstmCell,
+__all__ = [PytorchLstmLayer, DefaultLstmLayer, MoonLstmLayer,
+           TiedGalLstmLayer, UntiedGalLstmLayer, SemeniutaLstmLayer,
+           MerityLstmLayer,
            Rhn, RhnLin, RhnLinTCTied, OfficialRhn]
