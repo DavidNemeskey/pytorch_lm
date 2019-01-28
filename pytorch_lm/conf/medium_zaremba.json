@@ -1,32 +1,32 @@
 {
-	"model": {
-		"class": "GenericRnnModel",
-		"kwargs": {
-			"num_layers": 2,
-			"rnn": {
-				"class": "PytorchLstmLayer"
-			},
-			"embedding_size": 650,
-			"dropout": 0.5
-		}
-	},
-	"optimizer": {
-		"class": "torch.optim.SGD",
-		"args": [1.0]
-	},
-	"initializer": {
-		"function": "uniform_",
-		"kwargs": {"a": -0.05, "b": 0.05}
-	},
-	"lr_scheduler": {
-		"class": "ZarembaScheduleLR",
-		"kwargs": {
-			"lr_decay": 0.83,
-			"decay_delay": 6
-		}
-	},
-	"num_epochs": 39,
-	"batch_size": 20,
-	"num_steps": 35,
-	"grad_clip": 5
+    "model": {
+        "class": "GenericRnnModel",
+        "kwargs": {
+            "num_layers": 2,
+            "rnn": {
+                "class": "PytorchLstmLayer"
+            },
+            "embedding_size": 650,
+            "dropout": 0.5
+        }
+    },
+    "optimizer": {
+        "class": "torch.optim.SGD",
+        "args": [1.0]
+    },
+    "initializer": {
+        "function": "uniform_",
+        "kwargs": {"a": -0.05, "b": 0.05}
+    },
+    "lr_scheduler": {
+        "class": "ZarembaScheduleLR",
+        "kwargs": {
+            "lr_decay": 0.83,
+            "decay_delay": 6
+        }
+    },
+    "num_epochs": 39,
+    "batch_size": 20,
+    "num_steps": 35,
+    "grad_clip": 5
 }

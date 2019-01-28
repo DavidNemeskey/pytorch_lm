@@ -1,24 +1,24 @@
 {
-	"model": {
-		"class": "SmallLstmModel"
-	},
-	"optimizer": {
-		"class": "torch.optim.SGD",
-		"args": [1.0]
-	},
-	"initializer": {
-		"function": "uniform",
-		"kwargs": {"a": -0.1, "b": 0.1}
-	},
-	"lr_scheduler": {
-		"class": "ZarembaScheduleLR",
-		"kwargs": {
-			"lr_decay": 0.5,
-			"decay_delay": 4
-		}
-	},
-	"num_epochs": 13,
-	"batch_size": 20,
-	"num_steps": 20,
-	"grad_clip": 5
+    "model": {
+        "class": "SmallLstmModel"
+    },
+    "optimizer": {
+        "class": "torch.optim.SGD",
+        "args": [1.0]
+    },
+    "initializer": {
+        "function": "uniform_",
+        "kwargs": {"a": -0.1, "b": 0.1}
+    },
+    "lr_scheduler": {
+        "class": "ZarembaScheduleLR",
+        "kwargs": {
+            "lr_decay": 0.5,
+            "decay_delay": 4
+        }
+    },
+    "num_epochs": 13,
+    "batch_size": 20,
+    "num_steps": 20,
+    "grad_clip": 5
 }
