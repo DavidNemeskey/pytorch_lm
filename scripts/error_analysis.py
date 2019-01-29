@@ -33,6 +33,8 @@ def parse_arguments():
                         help='the model to load.')
     parser.add_argument('--batch', '-b', type=int, dest='batch_size', default=20,
                         help='the batch size. Default is 20.')
+    parser.add_argument('--steps', '-s', type=int, dest='num_steps', default=20,
+                        help='the number of timesteps. Default is 20.')
     parser.add_argument('--cuda', '-c', action='store_true', help='use CUDA')
     parser.add_argument('--log-level', '-L', type=str, default=None,
                         choices=['debug', 'info', 'warning', 'error', 'critical'],
@@ -52,8 +54,10 @@ def evaluate(model, corpus, data_source, criterion, batch_size, num_steps=1):
         print('Targets', targets.size(), targets)
         output, hidden = model(data, hidden)
         print('Output', output.size())
-        cost = criterion(output, targets).data
+        losses = criterion(output, targets).data
+        print('Losses', losses.size())
         hidden = repackage_hidden(hidden)
+        break
 
 
 def repackage_hidden(h):
@@ -85,7 +89,10 @@ def main():
     # Load the best saved model.
     with open(args.model, 'rb') as f:
         model = torch.load(f)
+    criterion = SequenceLoss(reduce_across_batch=None,
+                             reduce_across_timesteps=None)
     data = LMData(getattr(corpus, args.file), args.batch_size, args.cuda)
+    evaluate(model, corpus, data, criterion, args.batch_size, args.num_steps)
 
 
 if __name__ == '__main__':
