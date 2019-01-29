@@ -52,7 +52,7 @@ def evaluate(model, corpus, data_source, criterion, batch_size, num_steps=1):
     data_len = data_source.data.size(1)
     hidden = model.init_hidden(batch_size)
     # for i in range(0, data_len - 1, num_steps):
-    for data, targets in data_source.get_batches(num_steps, evaluation=True):
+    for data, targets in data_source.get_batches(steps, evaluation=True):
         print('Data', data.size(), data)
         print('Targets', targets.size(), targets)
         output, hidden = model(data, hidden)
