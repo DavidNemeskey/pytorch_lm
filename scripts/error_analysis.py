@@ -11,6 +11,7 @@ import argparse
 import torch
 
 from pytorch_lm.data import Corpus, LMData
+from pytorch_lm.loss import SequenceLoss
 
 
 def parse_arguments():
