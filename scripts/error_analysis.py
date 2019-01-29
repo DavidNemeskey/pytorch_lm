@@ -11,6 +11,7 @@ import argparse
 import torch
 
 from pytorch_lm.data import Corpus, LMData
+from pytorch_lm.bptt import FixNumSteps
 
 
 def parse_arguments():
@@ -46,6 +47,7 @@ def evaluate(model, corpus, data_source, criterion, batch_size, num_steps=1):
     assert num_steps == 1, 'num_steps greater than 1 are not supported'
     # Turn on evaluation mode which disables dropout.
     model.eval()
+    steps = FixNumSteps(num_steps)
     data_len = data_source.data.size(1)
     hidden = model.init_hidden(batch_size)
     # for i in range(0, data_len - 1, num_steps):
