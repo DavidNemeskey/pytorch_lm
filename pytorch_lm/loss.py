@@ -70,7 +70,8 @@ class SequenceLoss(L._WeightedLoss):
         flat_input = input.view(-1, input.size(2))
         flat_targets = target.view(-1)
         flat_losses = F.cross_entropy(flat_input, flat_targets, self.weight,
-                                      True, self.ignore_index, False)
+                                      ignore_index=self.ignore_index,
+                                      reduction='none')
         losses = flat_losses.view(target.size(0), target.size(1))
         if self.reduce_across_timesteps:
             losses = self.reduce_across_timesteps(losses, dim=1, keepdim=True)
