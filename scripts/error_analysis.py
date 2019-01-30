@@ -7,8 +7,10 @@ N candidates, the rank of the real word, etc.
 """
 
 import argparse
+from math import exp
 
 import torch
+from torch.autograd import Variable
 
 from pytorch_lm.bptt import FixNumSteps
 from pytorch_lm.data import Corpus, LMData
@@ -51,16 +53,44 @@ def evaluate(model, corpus, data_source, criterion, batch_size, num_steps=1):
     steps = FixNumSteps(num_steps)
     data_len = data_source.data.size(1)
     hidden = model.init_hidden(batch_size)
+    context = [[] for _ in range(batch_size)]
     # for i in range(0, data_len - 1, num_steps):
+    xxx = 0
+    total_loss = 0
     for data, targets in data_source.get_batches(steps, evaluation=True):
+        xxx += 1
         print('Data', data.size(), data)
         print('Targets', targets.size(), targets)
         output, hidden = model(data, hidden)
+        # TODO: mondatkezdo
+        # TODO: probability?
+        _, most_probable = torch.sort(output, dim=2, descending=True)
+        print('most prob', most_probable.size(), most_probable)
+        eq_target = (most_probable == targets.unsqueeze(2))
+        print('eq', eq_target.size())
+        nnz = eq_target.nonzero()
+        print('nnz', nnz.size(), nnz[:10])
+        # print('all', eq_target[:, 0], eq_target[:, 1], eq_target[:, 2])
+        indices = targets.index_put((nnz[:, 0], nnz[:, 1]), nnz[:, 2])
+        print('indices', indices)
         print('Output', output.size())
-        losses = criterion(output, targets).data
+        losses = criterion(output, targets).data.view(batch_size, num_steps)
+        total_loss += torch.sum(losses).item()
         print('Losses', losses.size())
         hidden = repackage_hidden(hidden)
-        break
+        for i in range(data.size(0)):
+            context[i] = (context[i] + [corpus.dictionary.idx2word[data[i, 0]]])[-10:]
+            # word, context, loss, perplexity
+            print(corpus.dictionary.idx2word[targets[i, 0]],
+                  ' '.join(context[i]),
+                  losses[i, 0].item(),
+                  exp(losses[i, 0]),
+                  ' '.join(corpus.dictionary.idx2word[w] for w in most_probable[i, 0, :5]),
+                  indices[i, 0].item(),
+                  sep='\t')
+        if xxx == 2:
+            break
+    print('TOTAL', total_loss / batch_size / data_len)
 
 
 def repackage_hidden(h):
