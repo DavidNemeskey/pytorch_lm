@@ -9,7 +9,10 @@ N candidates, the rank of the real word, etc.
 import argparse
 from math import exp
 
+import numpy as np
+import scipy.stats
 import torch
+import torch.nn.functional as F
 from torch.autograd import Variable
 
 from pytorch_lm.bptt import FixNumSteps
@@ -55,42 +58,41 @@ def evaluate(model, corpus, data_source, criterion, batch_size, num_steps=1):
     hidden = model.init_hidden(batch_size)
     context = [[] for _ in range(batch_size)]
     # for i in range(0, data_len - 1, num_steps):
-    xxx = 0
     total_loss = 0
     for data, targets in data_source.get_batches(steps, evaluation=True):
-        xxx += 1
-        print('Data', data.size(), data)
-        print('Targets', targets.size(), targets)
         output, hidden = model(data, hidden)
         # TODO: mondatkezdo
-        # TODO: probability?
-        _, most_probable = torch.sort(output, dim=2, descending=True)
-        print('most prob', most_probable.size(), most_probable)
+        sorted_logits, most_probable = torch.sort(output, dim=2, descending=True)
         eq_target = (most_probable == targets.unsqueeze(2))
-        print('eq', eq_target.size())
         nnz = eq_target.nonzero()
-        print('nnz', nnz.size(), nnz[:10])
-        # print('all', eq_target[:, 0], eq_target[:, 1], eq_target[:, 2])
         indices = targets.index_put((nnz[:, 0], nnz[:, 1]), nnz[:, 2])
-        print('indices', indices)
-        print('Output', output.size())
         losses = criterion(output, targets).data.view(batch_size, num_steps)
+        probabilities = F.softmax(sorted_logits, dim=2)
+        coordx, coordy = torch.meshgrid([torch.arange(batch_size), torch.arange(num_steps)])
+        target_probs = probabilities[coordx, coordy, indices]
+        predicted_probs = probabilities[:, :, 0]
+        entropy = (-probabilities * F.log_softmax(sorted_logits, dim=2)).sum(2)
         total_loss += torch.sum(losses).item()
-        print('Losses', losses.size())
         hidden = repackage_hidden(hidden)
+        print('target_word', 'context', 'loss', 'perplexity', 'entropy',
+              'target_index', 'target_p', 'predicted_p', 'most_probable',
+              sep='\t')
         for i in range(data.size(0)):
             context[i] = (context[i] + [corpus.dictionary.idx2word[data[i, 0]]])[-10:]
-            # word, context, loss, perplexity
+            # word, context, loss, perplexity, entropy of the distribution,
+            # index of the target word, probability of target word,
+            # probability of predicted word, most probable words
             print(corpus.dictionary.idx2word[targets[i, 0]],
                   ' '.join(context[i]),
                   losses[i, 0].item(),
                   exp(losses[i, 0]),
-                  ' '.join(corpus.dictionary.idx2word[w] for w in most_probable[i, 0, :5]),
+                  entropy[i, 0].item(),
                   indices[i, 0].item(),
+                  target_probs[i, 0].item(),
+                  predicted_probs[i, 0].item(),
+                  ' '.join(corpus.dictionary.idx2word[w] for w in most_probable[i, 0, :5]),
                   sep='\t')
-        if xxx == 2:
-            break
-    print('TOTAL', total_loss / batch_size / data_len)
+    return total_loss / batch_size / data_len
 
 
 def repackage_hidden(h):
