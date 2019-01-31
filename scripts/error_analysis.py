@@ -59,6 +59,10 @@ def evaluate(model, corpus, data_source, criterion, batch_size, num_steps=1):
     context = [[] for _ in range(batch_size)]
     # for i in range(0, data_len - 1, num_steps):
     total_loss = 0
+
+    print('target_word', 'context', 'loss', 'perplexity', 'entropy',
+          'target_index', 'target_p', 'predicted_p', 'most_probable',
+          sep='\t')
     for data, targets in data_source.get_batches(steps, evaluation=True):
         output, hidden = model(data, hidden)
         # TODO: mondatkezdo
@@ -74,9 +78,6 @@ def evaluate(model, corpus, data_source, criterion, batch_size, num_steps=1):
         entropy = (-probabilities * F.log_softmax(sorted_logits, dim=2)).sum(2)
         total_loss += torch.sum(losses).item()
         hidden = repackage_hidden(hidden)
-        print('target_word', 'context', 'loss', 'perplexity', 'entropy',
-              'target_index', 'target_p', 'predicted_p', 'most_probable',
-              sep='\t')
         for i in range(data.size(0)):
             context[i] = (context[i] + [corpus.dictionary.idx2word[data[i, 0]]])[-10:]
             # word, context, loss, perplexity, entropy of the distribution,
