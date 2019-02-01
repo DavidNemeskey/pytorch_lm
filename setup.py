@@ -60,7 +60,7 @@ setup(name='pytorch_lm',
       # Tensorflow and numpy can be installed from requirement files, as they
       # are only required if the nn module / scripts are used.
       install_requires=[
-          'numpy>=1.13.0',
+          'numpy>=1.15.0',
           # Better regex
           'regex'
       ],

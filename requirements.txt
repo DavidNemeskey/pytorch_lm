@@ -1,5 +1,4 @@
 jupyter
-numpy
 scipy
 pandas
 numexpr
