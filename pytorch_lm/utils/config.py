@@ -85,7 +85,7 @@ def __clsfn_args_kwargs(config, key, base_module=None, args=None, kwargs=None):
     implements the code that is common to both.
     """
     logger = logging.getLogger('pytorch_lm.utils.config')
-    logger.config('config: {}, key: {}, base_module: {}, args: {}, kwargs: {}'.format(
+    logger.info('config: {}, key: {}, base_module: {}, args: {}, kwargs: {}'.format(
         config, key, base_module, args, kwargs))
     args = args or []
     kwargs = kwargs or {}
