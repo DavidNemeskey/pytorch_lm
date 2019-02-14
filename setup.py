@@ -12,7 +12,7 @@ def readme():
         return f.read()
 
 setup(name='pytorch_lm',
-      version='0.3',
+      version='0.4',
       description='Pytorch-based experiments for Language Modeling',
       long_description=readme(),
       url='https://github.com/DavidNemeskey/pytorch_lm',
@@ -54,12 +54,13 @@ setup(name='pytorch_lm',
       # Install the scripts
       scripts=[
           'scripts/run_lm_model.py',
+          'scripts/error_analysis.py',
       ],
       test_suite = 'tests',
       # Tensorflow and numpy can be installed from requirement files, as they
       # are only required if the nn module / scripts are used.
       install_requires=[
-          'numpy>=1.13.0',
+          'numpy>=1.15.0',
           # Better regex
           'regex'
       ],
