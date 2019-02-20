@@ -202,24 +202,30 @@ class PressAndWolfModel(GenericRnnModel):
     The default is weight tying and projection with lambda = 0.15, as in the
     paper.
     """
-    def __init__(self, vocab_size, num_layers, embedding_size=0, hidden_size=0,
-                 rnn=None, embedding_dropout=None, output_dropout=None,
+    def __init__(self, vocab_size, num_layers, rnn=None, embedding_size=0,
+                 hidden_size=0, embedding_dropout=None, input_dropout=None,
+                 layer_dropout=None, output_dropout=None,
                  dropout=None, weight_tying=True, projection_lambda=0.15):
         super(PressAndWolfModel, self).__init__(
-            vocab_size, num_layers, embedding_size, hidden_size, rnn,
-            embedding_dropout, output_dropout, dropout, weight_tying
+            vocab_size, num_layers, rnn, embedding_size, hidden_size,
+            embedding_dropout, input_dropout, layer_dropout, output_dropout,
+            dropout, weight_tying
         )
 
         if projection_lambda:
-            self.projection = nn.Linear(embedding_size, embedding_size, bias=False)
+            self.projection = nn.Linear(
+                self.embedding_size, self.embedding_size, bias=False)
             self.projection_lambda = projection_lambda
         else:
             self.projection = None
 
     def _rnn(self, emb, hidden):
         """Also performs the projection."""
-        output, hidden = super(PressAndWolfModel, self)._rnn(emb, hidden)
-        return self.projection(output) if self.projection else output
+        output, *the_rest = super(PressAndWolfModel, self)._rnn(emb, hidden)
+        return (
+            self.projection(output) if self.projection else output,
+            *the_rest
+        )
 
     def loss_regularizer(self):
         """The regularizing term (if any) that is added to the loss."""
@@ -230,21 +236,22 @@ class PressAndWolfModel(GenericRnnModel):
 
 
 class SmallPressAndWolfModel(PressAndWolfModel):
-    def __init__(self, vocab_size):
+    def __init__(self, vocab_size, rnn=None):
         super(SmallPressAndWolfModel, self).__init__(
-            vocab_size, 2, hidden_size=200)
+            vocab_size, 2, hidden_size=200, rnn=rnn)
 
 
 class MediumPressAndWolfModel(PressAndWolfModel):
-    def __init__(self, vocab_size):
+    def __init__(self, vocab_size, rnn=None):
         super(MediumPressAndWolfModel, self).__init__(
-            vocab_size, 2, hidden_size=650, dropout=0.5)
+            vocab_size, 2, hidden_size=650, dropout=0.5, rnn=rnn)
 
 
 class LargePressAndWolfModel(PressAndWolfModel):
-    def __init__(self, vocab_size):
+    def __init__(self, vocab_size, rnn=None):
         super(LargePressAndWolfModel, self).__init__(
-            vocab_size, 2, hidden_size=1500, dropout=0.65)
+            vocab_size, 2, hidden_size=1500, dropout=0.65, rnn=rnn,
+            weight_tying=True, projection_lambda=0.15)
 
 
 class MerityModel(GenericRnnModel):
