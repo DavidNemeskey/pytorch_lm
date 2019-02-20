@@ -33,7 +33,7 @@ class LstmLayer(nn.Module, InitHidden):
 
     As a reminder: input size is batch_size x seq_len x input_features.
     """
-    def __init__(self, input_size, hidden_size, forget_bias=1):
+    def __init__(self, input_size, hidden_size, forget_bias=None):
         """
         Args:
             - input_size: the number of input features
