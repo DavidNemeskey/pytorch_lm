@@ -2,8 +2,8 @@
 # vim: set fileencoding=utf-8 :
 
 """
-Loads a model and computes the PPL for each individual word, as well as the top
-N candidates, the rank of the real word, etc.
+Loads a model and computes various statistics: the PPL for each individual word,
+as well as the top N candidates, the rank of the real word, etc.
 """
 
 import argparse
